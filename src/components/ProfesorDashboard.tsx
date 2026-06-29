@@ -40,37 +40,29 @@ export const ProfesorDashboard: React.FC = () => {
   const [alertasCmaras, setAlertasCmaras] = useState<{ camara: string; temp: number; limite: string }[]>([]);
 
   useEffect(() => {
-    // Comprobar si hay temperaturas fuera de rango en la base de datos hoy
+    // Comprobar si hay temperaturas fuera de rango en la base de datos
     const checkAlertas = async () => {
       try {
-        const { data: camaras } = await supabase
-          .from('camaras')
-          .select('id, nombre, temperatura_max, temperatura_min')
-          .eq('activa', true);
+        const { data: alertas } = await supabase
+          .from('registro_temperaturas')
+          .select(`
+            temperatura,
+            camaras (
+              nombre,
+              temperatura_limite
+            )
+          `)
+          .eq('alerta', true)
+          .order('creado_en', { ascending: false })
+          .limit(6);
 
-        if (camaras && camaras.length > 0) {
-          const alertasDetected: { camara: string; temp: number; limite: string }[] = [];
-          
-          for (const cam of camaras) {
-            const { data: lecturas } = await supabase
-              .from('registros_temperatura')
-              .select('temperatura')
-              .eq('camara_id', cam.id)
-              .order('creado_en', { ascending: false })
-              .limit(1);
-
-            if (lecturas && lecturas.length > 0) {
-              const temp = parseFloat(lecturas[0].temperatura as any);
-              if (temp > cam.temperatura_max || temp < cam.temperatura_min) {
-                alertasDetected.push({
-                  camara: cam.nombre,
-                  temp,
-                  limite: `Fuera del rango (${cam.temperatura_min}-${cam.temperatura_max}°C)`
-                });
-              }
-            }
-          }
-          setAlertasCmaras(alertasDetected);
+        if (alertas) {
+          const formatted = (alertas as any[]).map(al => ({
+            camara: al.camaras?.nombre || 'Cámara',
+            temp: parseFloat(al.temperatura),
+            limite: `Supera límite de ${al.camaras?.temperatura_limite}°C`
+          }));
+          setAlertasCmaras(formatted);
         }
       } catch (err) {
         console.error(err);

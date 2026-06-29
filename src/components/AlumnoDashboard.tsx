@@ -29,7 +29,11 @@ export const AlumnoDashboard: React.FC = () => {
   const [tempData, setTempData] = useState<{ nombre: string; temp: number; estado: 'ok' | 'alerta'; rango: string } | null>(null);
   const [loadingTemp, setLoadingTemp] = useState(true);
 
-  // Estados de checklists maquetados de alta fidelidad (se conectarán en la Fase 6)
+  // Estado para plato hoy real de Supabase
+  const [platoHoy, setPlatoHoy] = useState<{ nombre: string; descripcion: string; alergenos: string[] } | null>(null);
+  const [loadingBriefing, setLoadingBriefing] = useState(true);
+
+  // Estados de checklists
   const [tasks, setTasks] = useState([
     { id: 1, text: 'Desinfectar estación y tablas de corte', completed: true },
     { id: 2, text: 'Preparar fondo oscuro de ave', completed: true },
@@ -38,7 +42,7 @@ export const AlumnoDashboard: React.FC = () => {
     { id: 5, text: 'Verificar mise en place de la estación', completed: false }
   ]);
 
-  // Incidencia rápida (Microblog - Fase 7)
+  // Incidencia rápida (Microblog)
   const [incidenciaText, setIncidenciaText] = useState('');
   const [sendingIncidencia, setSendingIncidencia] = useState(false);
   const [incidenciaSuccess, setIncidenciaSuccess] = useState(false);
@@ -90,7 +94,7 @@ export const AlumnoDashboard: React.FC = () => {
           const camara = camaras[0];
           // Obtener última lectura de hoy
           const { data: lecturas } = await supabase
-            .from('registros_temperatura')
+            .from('registro_temperaturas')
             .select('temperatura')
             .eq('camara_id', camara.id)
             .order('creado_en', { ascending: false })
@@ -121,8 +125,40 @@ export const AlumnoDashboard: React.FC = () => {
       }
     };
 
+    const fetchExpressBriefing = async () => {
+      setLoadingBriefing(true);
+      try {
+        const hoyString = new Date().toISOString().split('T')[0];
+        const { data: cartasData } = await supabase
+          .from('cartas_semanales')
+          .select('elaboraciones')
+          .eq('fecha', hoyString);
+
+        if (cartasData && cartasData.length > 0 && cartasData[0].elaboraciones && cartasData[0].elaboraciones.length > 0) {
+          const { data: elabs } = await supabase
+            .from('elaboraciones')
+            .select('nombre, descripcion, alergenos')
+            .in('id', cartasData[0].elaboraciones)
+            .limit(1);
+
+          if (elabs && elabs.length > 0) {
+            setPlatoHoy({
+              nombre: elabs[0].nombre,
+              descripcion: elabs[0].descripcion || '',
+              alergenos: elabs[0].alergenos || []
+            });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingBriefing(false);
+      }
+    };
+
     fetchExpressStock();
     fetchExpressTemp();
+    fetchExpressBriefing();
   }, []);
 
   const handleToggleTask = (id: number) => {
@@ -136,14 +172,14 @@ export const AlumnoDashboard: React.FC = () => {
     setIncidenciaSuccess(false);
 
     try {
-      // Registrar incidencia en base de datos
       const { error } = await supabase
         .from('incidencias')
         .insert([{
-          aula: 'Taller de Tarde',
+          usuario_id: profile?.id,
+          tipo: 'averia',
           descripcion: incidenciaText.trim().substring(0, 140),
           estado: 'pendiente',
-          creado_por: profile?.id
+          fecha: new Date().toISOString()
         }]);
 
       setIncidenciaSuccess(true);
@@ -184,17 +220,44 @@ export const AlumnoDashboard: React.FC = () => {
           </div>
           <div style={styles.briefingContent}>
             <span style={styles.briefingType}>Plato Principal Elaborado</span>
-            <h3 style={styles.briefingName}>Risotto de Setas Silvestres con Crujiente de Parmesano</h3>
+            <h3 style={styles.briefingName}>
+              {loadingBriefing ? 'Cargando carta...' : (platoHoy ? platoHoy.nombre : 'Risotto de Setas Silvestres con Crujiente de Parmesano')}
+            </h3>
+            {platoHoy && platoHoy.descripcion && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '6px', lineHeight: '1.4' }}>
+                {platoHoy.descripcion.substring(0, 100)}...
+              </p>
+            )}
             
             <div style={styles.allergensContainer}>
-              <div style={styles.allergenChip} title="Contiene Lácteos">
-                <Utensils size={14} color="var(--accent)" />
-                <span>Lácteos (Parmesano)</span>
-              </div>
-              <div style={styles.allergenChip} title="Apto para Vegetarianos">
-                <CheckCircle size={14} color="var(--success)" />
-                <span>Vegetariano</span>
-              </div>
+              {loadingBriefing ? (
+                <span>Cargando alérgenos...</span>
+              ) : platoHoy ? (
+                platoHoy.alergenos.length === 0 ? (
+                  <div style={styles.allergenChip} title="Libre de alérgenos">
+                    <CheckCircle size={14} color="var(--success)" />
+                    <span>Sin alérgenos</span>
+                  </div>
+                ) : (
+                  platoHoy.alergenos.map(al => (
+                    <div key={al} style={styles.allergenChip} title={`Contiene ${al}`}>
+                      <Utensils size={14} color="var(--accent)" />
+                      <span>{al.toUpperCase()}</span>
+                    </div>
+                  ))
+                )
+              ) : (
+                <>
+                  <div style={styles.allergenChip} title="Contiene Lácteos">
+                    <Utensils size={14} color="var(--accent)" />
+                    <span>Lácteos (Parmesano)</span>
+                  </div>
+                  <div style={styles.allergenChip} title="Apto para Vegetarianos">
+                    <CheckCircle size={14} color="var(--success)" />
+                    <span>Vegetariano</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           {/* Orbe decorativo */}

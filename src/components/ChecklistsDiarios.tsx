@@ -22,7 +22,8 @@ import {
   UserCheck, 
   Edit3, 
   AlertCircle,
-  BookOpen
+  BookOpen,
+  Info
 } from 'lucide-react';
 
 export const ChecklistsDiarios: React.FC = () => {
@@ -95,21 +96,21 @@ export const ChecklistsDiarios: React.FC = () => {
 
       // 3. Cargar tareas de producción activas
       const { data: tP } = await supabase
-        .from('checklist_produccion_tarea')
+        .from('checklist_produccion_tareas')
         .select('*')
         .eq('activa', true);
       setTareasProd(tP || []);
 
       // 4. Cargar tareas de limpieza activas
       const { data: tL } = await supabase
-        .from('checklist_limpieza_tarea')
+        .from('checklist_limpieza_tareas')
         .select('*')
         .eq('activa', true);
       setTareasLimp(tL || []);
 
       // 5. Cargar asignaciones de roles (Jefaturas)
       const { data: jefs } = await supabase
-        .from('jefe_cocina')
+        .from('jefes_cocina')
         .select(`
           *,
           grupos(nombre)
@@ -117,7 +118,6 @@ export const ChecklistsDiarios: React.FC = () => {
         .order('fecha', { ascending: false });
 
       if (jefs) {
-        // Enlazar nombres de los alumnos de forma local para evitar joins complejos cruzando con auth
         const formatted = jefs.map((j: any) => {
           const jefeObj = alms?.find(a => a.id === j.jefe_id);
           const limpObj = alms?.find(a => a.id === j.limpieza_id);
@@ -130,14 +130,12 @@ export const ChecklistsDiarios: React.FC = () => {
         });
         setJefaturas(formatted);
 
-        // Seleccionar por defecto la jefatura de hoy si existe
         const hoyString = new Date().toISOString().split('T')[0];
         const jefHoy = formatted.find(j => j.fecha === hoyString);
         if (jefHoy) {
           setActiveJefatura(jefHoy);
           await loadRegistrosChecklists(jefHoy.id);
         } else if (formatted.length > 0) {
-          // O la última disponible
           setActiveJefatura(formatted[0]);
           await loadRegistrosChecklists(formatted[0].id);
         }
@@ -152,7 +150,6 @@ export const ChecklistsDiarios: React.FC = () => {
 
   const loadRegistrosChecklists = async (jefaturaId: string) => {
     try {
-      // Cargar registros de producción
       const { data: regP } = await supabase
         .from('checklist_produccion_registro')
         .select('*')
@@ -164,7 +161,6 @@ export const ChecklistsDiarios: React.FC = () => {
       });
       setRegistrosProd(mapP);
 
-      // Cargar registros de limpieza
       const { data: regL } = await supabase
         .from('checklist_limpieza_registro')
         .select('*')
@@ -185,7 +181,6 @@ export const ChecklistsDiarios: React.FC = () => {
     fetchData();
   }, [profile]);
 
-  // Manejar cambio de Jefatura seleccionada
   const handleSelectJefatura = async (jef: any) => {
     setActiveJefatura(jef);
     setLoading(true);
@@ -193,7 +188,6 @@ export const ChecklistsDiarios: React.FC = () => {
     setLoading(false);
   };
 
-  // Crear Asignación de Roles
   const handleAsignarRoles = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!grupoSel || !jefeSel || !limpiezaSel) {
@@ -205,9 +199,8 @@ export const ChecklistsDiarios: React.FC = () => {
     setSuccessMsg('');
 
     try {
-      // Verificar si ya existe asignación para esa fecha y grupo
       const { data: existing } = await supabase
-        .from('jefe_cocina')
+        .from('jefes_cocina')
         .select('id')
         .eq('grupo_id', grupoSel)
         .eq('fecha', fechaSel)
@@ -215,7 +208,7 @@ export const ChecklistsDiarios: React.FC = () => {
 
       if (existing) {
         const { error } = await supabase
-          .from('jefe_cocina')
+          .from('jefes_cocina')
           .update({
             jefe_id: jefeSel,
             limpieza_id: limpiezaSel
@@ -224,7 +217,7 @@ export const ChecklistsDiarios: React.FC = () => {
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('jefe_cocina')
+          .from('jefes_cocina')
           .insert([{
             grupo_id: grupoSel,
             fecha: fechaSel,
@@ -248,7 +241,6 @@ export const ChecklistsDiarios: React.FC = () => {
     }
   };
 
-  // Crear Tarea Maestra
   const handleCrearTareaMaestra = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevaTareaTexto.trim()) return;
@@ -257,9 +249,8 @@ export const ChecklistsDiarios: React.FC = () => {
 
     try {
       if (tipoNuevaTarea === 'produccion') {
-        // En checklists de producción la tarea puede ser general o de un grupo
         const { error } = await supabase
-          .from('checklist_produccion_tarea')
+          .from('checklist_produccion_tareas')
           .insert([{
             tarea: nuevaTareaTexto.trim(),
             activa: true
@@ -267,7 +258,7 @@ export const ChecklistsDiarios: React.FC = () => {
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('checklist_limpieza_tarea')
+          .from('checklist_limpieza_tareas')
           .insert([{
             aula: aulaTareaLimp,
             tarea: nuevaTareaTexto.trim(),
@@ -284,11 +275,9 @@ export const ChecklistsDiarios: React.FC = () => {
     }
   };
 
-  // Completar / Desmarcar Tarea en tiempo real
   const handleToggleTareaRegistro = async (tareaId: string, tipo: 'produccion' | 'limpieza') => {
     if (!activeJefatura) return;
 
-    // Control de permisos: Alumnos solo pueden marcar si tienen asignado el rol correspondiente o son profesores
     const soyJefe = profile?.id === activeJefatura.jefe_id;
     const soyLimpieza = profile?.id === activeJefatura.limpieza_id;
     
@@ -313,11 +302,9 @@ export const ChecklistsDiarios: React.FC = () => {
     const yaCompletada = registrosActuales[tareaId] || false;
     const nuevaCompletada = !yaCompletada;
 
-    // Actualizar optimísticamente en UI
     setRegistros(prev => ({ ...prev, [tareaId]: nuevaCompletada }));
 
     try {
-      // Buscar si ya existe el registro en BD
       const { data: existing } = await supabase
         .from(tabla)
         .select('id')
@@ -342,13 +329,11 @@ export const ChecklistsDiarios: React.FC = () => {
         if (error) throw error;
       }
     } catch (err: any) {
-      // Revertir en caso de error
       setRegistros(prev => ({ ...prev, [tareaId]: yaCompletada }));
       alert('Error al guardar tarea: ' + err.message);
     }
   };
 
-  // Firmar y congelar el checklist diario
   const handleFirmaChecklist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeJefatura || !firmaNombre.trim()) return;
@@ -357,9 +342,8 @@ export const ChecklistsDiarios: React.FC = () => {
     setSuccessMsg('');
 
     try {
-      // Congelar jefatura con firma y observaciones
       const { error } = await supabase
-        .from('jefe_cocina')
+        .from('jefes_cocina')
         .update({
           firmado: true,
           firmado_en: new Date().toISOString(),
@@ -389,7 +373,6 @@ export const ChecklistsDiarios: React.FC = () => {
 
   return (
     <div style={styles.container}>
-      {/* CABECERA Y SECTOR DE PESTAÑAS */}
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <CheckSquare size={24} color="var(--accent)" />
@@ -433,10 +416,8 @@ export const ChecklistsDiarios: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* PESTAÑA 1: LLENAR CHECKLISTS */}
           {activeTab === 'taller' && (
             <div style={styles.tallerLayout}>
-              {/* Panel Izquierdo: Fechas / Sesiones */}
               <div style={styles.sideBento}>
                 <div style={styles.panelTitle}>Sesiones de Taller</div>
                 <div style={styles.recetarioScroll}>
@@ -454,7 +435,7 @@ export const ChecklistsDiarios: React.FC = () => {
                             ...(isActive ? styles.sessionCardActive : {})
                           }}
                         >
-                          <div style={{ display: 'flex', justifyBetween: 'center', alignItems: 'center', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                             <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{jef.grupo_nombre}</div>
                             {jef.firmado ? (
                               <span style={styles.chipSigned}>Firmado</span>
@@ -475,7 +456,6 @@ export const ChecklistsDiarios: React.FC = () => {
                 </div>
               </div>
 
-              {/* Panel Derecho: Checklists */}
               {activeJefatura ? (
                 <div style={styles.mainBento}>
                   <div style={styles.activeSessionHeader}>
@@ -504,7 +484,6 @@ export const ChecklistsDiarios: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Advertencia de solo lectura */}
                   {!isProfesor && !isAdmin && (
                     (activeChecklistTab === 'produccion' && !soyJefeActivo) || 
                     (activeChecklistTab === 'limpieza' && !soyLimpiezaActivo)
@@ -515,7 +494,6 @@ export const ChecklistsDiarios: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Estado Congelado */}
                   {activeJefatura.firmado && (
                     <div style={styles.signedBar}>
                       <UserCheck size={16} />
@@ -523,7 +501,6 @@ export const ChecklistsDiarios: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Listado de Tareas */}
                   <div style={{ marginTop: '20px' }}>
                     <ul style={styles.taskList}>
                       {activeChecklistTab === 'produccion' ? (
@@ -585,7 +562,6 @@ export const ChecklistsDiarios: React.FC = () => {
                       )}
                     </ul>
 
-                    {/* Botón de Firmar y Guardar */}
                     {puedeFirmar && (
                       <button 
                         onClick={() => setShowFirmaModal(true)} 
@@ -605,7 +581,6 @@ export const ChecklistsDiarios: React.FC = () => {
             </div>
           )}
 
-          {/* PESTAÑA 2: ASIGNAR ROLES DIARIOS (DOCENTES / ADMIN) */}
           {activeTab === 'roles' && (isProfesor || isAdmin) && (
             <div style={styles.formLayout}>
               <div style={styles.bentoCard}>
@@ -675,10 +650,8 @@ export const ChecklistsDiarios: React.FC = () => {
             </div>
           )}
 
-          {/* PESTAÑA 3: CONFIGURAR TAREAS MAESTRAS (DOCENTES / ADMIN) */}
           {activeTab === 'config' && (isProfesor || isAdmin) && (
             <div style={styles.tallerLayout}>
-              {/* Formulario de creación */}
               <div style={styles.sideBento}>
                 <div style={styles.panelTitle}>Añadir Tarea Maestra</div>
                 <form onSubmit={handleCrearTareaMaestra} style={styles.form}>
@@ -733,7 +706,6 @@ export const ChecklistsDiarios: React.FC = () => {
                 </form>
               </div>
 
-              {/* Panel de visualización y edición */}
               <div style={styles.mainBento}>
                 <div style={styles.panelTitle}>Tareas Maestras Registradas</div>
                 
@@ -766,7 +738,6 @@ export const ChecklistsDiarios: React.FC = () => {
         </>
       )}
 
-      {/* MODAL DE FIRMA Y CONGELACIÓN */}
       {showFirmaModal && activeJefatura && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
@@ -953,8 +924,6 @@ const styles = {
     padding: '2px 8px',
     borderRadius: '20px',
   } as React.CSSProperties,
-  
-  // Detalle Sesion Activa
   activeSessionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1064,8 +1033,6 @@ const styles = {
     marginTop: '20px',
     transition: 'all var(--transition-fast)',
   } as React.CSSProperties,
-
-  // Frmularios
   formLayout: {
     maxWidth: '600px',
     margin: '0 auto',
@@ -1135,8 +1102,6 @@ const styles = {
     transition: 'all var(--transition-fast)',
     marginTop: '10px',
   } as React.CSSProperties,
-
-  // Config list
   configList: {
     listStyle: 'none',
     display: 'flex',
@@ -1175,8 +1140,6 @@ const styles = {
     backgroundColor: 'var(--accent-glow)',
     color: 'var(--text-primary)',
   } as React.CSSProperties,
-
-  // Modales
   modalOverlay: {
     position: 'fixed',
     top: 0,

@@ -96,7 +96,7 @@ export const BriefingServicio: React.FC = () => {
       }
 
       // 3. Cargar la carta del día asignada al grupo del alumno o general
-      let query = supabase.from('carta_semanal').select(`
+      let query = supabase.from('cartas_semanales').select(`
         *,
         grupos(nombre)
       `);
@@ -200,7 +200,7 @@ export const BriefingServicio: React.FC = () => {
     try {
       // Comprobar si ya existe menú programado para ese grupo y fecha
       const { data: existing } = await supabase
-        .from('carta_semanal')
+        .from('cartas_semanales')
         .select('id')
         .eq('grupo_id', grupoSeleccionado)
         .eq('fecha', fechaCarta)
@@ -209,7 +209,7 @@ export const BriefingServicio: React.FC = () => {
       if (existing) {
         // Actualizar el menú existente
         const { error } = await supabase
-          .from('carta_semanal')
+          .from('cartas_semanales')
           .update({
             elaboraciones: elaboracionesSeleccionadas,
             creado_por: profile?.id
@@ -219,7 +219,7 @@ export const BriefingServicio: React.FC = () => {
       } else {
         // Insertar nuevo menú diario
         const { error } = await supabase
-          .from('carta_semanal')
+          .from('cartas_semanales')
           .insert([{
             grupo_id: grupoSeleccionado,
             fecha: fechaCarta,

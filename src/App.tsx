@@ -9,6 +9,8 @@ import { AlumnoDashboard } from './components/AlumnoDashboard';
 import { ProfesorDashboard } from './components/ProfesorDashboard';
 import { BriefingServicio } from './components/BriefingServicio';
 import { ChecklistsDiarios } from './components/ChecklistsDiarios';
+import { GestionIncidencias } from './components/GestionIncidencias';
+import { SupervisionTallerComponent } from './components/SupervisionTallerComponent';
 import { 
   LogOut, 
   GraduationCap, 
@@ -130,9 +132,9 @@ const DashboardContent: React.FC = () => {
       case 'checklists':
         return <ChecklistsDiarios />;
       case 'incidencias':
-        return <div style={styles.tabPlaceholder}><h2>Reporte y Gestión de Incidencias</h2><p>Próximamente en Fase 7.</p></div>;
+        return <GestionIncidencias />;
       case 'supervision':
-        return <div style={styles.tabPlaceholder}><h2>Supervisión y Evaluación de Alumnos</h2><p>Próximamente en Fase 7.</p></div>;
+        return <SupervisionTallerComponent />;
       default:
         return <div>Sección no encontrada</div>;
     }
