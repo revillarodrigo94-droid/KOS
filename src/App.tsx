@@ -125,7 +125,7 @@ const DashboardContent: React.FC = () => {
       case 'inventario':
         return <InventarioActivo />;
       case 'briefing':
-        return <div style={styles.tabPlaceholder}><h2>Briefing de Elaboraciones y Menú</h2><p>Próximamente en Fase 5.</p></div>;
+        return <BriefingServicio />;
       case 'checklists':
         return <div style={styles.tabPlaceholder}><h2>Checklists de Jefatura y Limpieza</h2><p>Próximamente en Fase 6.</p></div>;
       case 'incidencias':
