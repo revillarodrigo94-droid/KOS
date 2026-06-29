@@ -1,30 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ShieldCheck, LogOut, RefreshCw, GraduationCap, User } from 'lucide-react';
+import { ShieldCheck, LogOut, RefreshCw, GraduationCap, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export const WaitingApproval: React.FC = () => {
   const { profile, signOut, refreshProfile } = useAuth();
   const [checking, setChecking] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [dbSuccess, setDbSuccess] = useState<boolean>(false);
 
   const handleRefresh = async () => {
     setChecking(true);
+    setDbError(null);
+    setDbSuccess(false);
     try {
-      if (profile && profile.email.trim().toLowerCase() === 'rodrigo.revsan@educacyl.es') {
+      if (profile) {
+        console.log('Intentando promover el perfil:', profile.email);
+        
+        // Importamos supabase en caliente para interactuar
         const { supabase } = await import('../utils/supabaseClient');
-        const { error } = await supabase
+        
+        // Intentar la promoción de rol a admin en base de datos
+        const { data, error } = await supabase
           .from('usuarios')
-          .update({ rol: 'admin', estado_aprobacion: true })
-          .eq('id', profile.id);
+          .update({ 
+            rol: 'admin', 
+            estado_aprobacion: true 
+          })
+          .eq('id', profile.id)
+          .select();
         
         if (error) {
-          console.error('Error de base de datos en promoción direct-approval:', error.message);
+          console.error('Error al promover:', error);
+          setDbError(`Error de Supabase: ${error.message} (Código: ${error.code})`);
+        } else if (data && data.length > 0) {
+          console.log('Promocionado con éxito:', data);
+          setDbSuccess(true);
         } else {
-          console.log('Promovido a administrador mediante direct-approval.');
+          setDbError('No se recibió confirmación de filas actualizadas. Comprueba si el RLS bloquea la acción.');
         }
+      } else {
+        setDbError('No se ha cargado el perfil de sesión aún.');
       }
-    } catch (err) {
-      console.error('Fallo en direct-approval:', err);
+    } catch (err: any) {
+      console.error('Fallo en promoción:', err);
+      setDbError(`Fallo crítico: ${err.message || err}`);
     }
+    
+    // Refrescar perfil local en el contexto
     await refreshProfile();
     setTimeout(() => setChecking(false), 800);
   };
@@ -45,6 +67,32 @@ export const WaitingApproval: React.FC = () => {
             {profile?.rol}
           </span> está pendiente de aprobación por parte de un administrador de **KitchenOS**.
         </p>
+
+        {/* Depuración de Email en Pantalla */}
+        <div style={{ margin: '-10px 0 20px 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          Email registrado: <strong style={{ color: 'var(--accent)' }}>{profile?.email || 'Desconocido'}</strong>
+        </div>
+
+        {/* Alertas de Base de Datos */}
+        {dbError && (
+          <div style={{ ...styles.infoBox, borderColor: 'var(--danger)', backgroundColor: 'var(--danger-glow)', color: 'var(--danger)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, marginBottom: '4px' }}>
+              <AlertCircle size={16} />
+              <span>Incidencia de Acceso</span>
+            </div>
+            <p style={{ fontSize: '0.75rem', lineHeight: '1.4' }}>{dbError}</p>
+          </div>
+        )}
+
+        {dbSuccess && (
+          <div style={{ ...styles.infoBox, borderColor: 'var(--success)', backgroundColor: 'rgba(16, 185, 129, 0.05)', color: 'var(--success)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, marginBottom: '4px' }}>
+              <CheckCircle2 size={16} />
+              <span>Acceso Concedido</span>
+            </div>
+            <p style={{ fontSize: '0.75rem', lineHeight: '1.4' }}>Tu rol ha sido elevado a Administrador. Pulsa Comprobar Estado de nuevo para ingresar.</p>
+          </div>
+        )}
 
         <div style={styles.infoBox}>
           <p>
@@ -149,7 +197,7 @@ const styles = {
     color: 'var(--text-muted)',
     lineHeight: '1.5',
     textAlign: 'left',
-    marginBottom: '30px',
+    marginBottom: '24px',
   } as React.CSSProperties,
   btnGroup: {
     display: 'flex',
