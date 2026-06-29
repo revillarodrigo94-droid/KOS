@@ -8,8 +8,24 @@ export const WaitingApproval: React.FC = () => {
 
   const handleRefresh = async () => {
     setChecking(true);
+    try {
+      if (profile && profile.email.trim().toLowerCase() === 'rodrigo.revsan@educacyl.es') {
+        const { supabase } = await import('../utils/supabaseClient');
+        const { error } = await supabase
+          .from('usuarios')
+          .update({ rol: 'admin', estado_aprobacion: true })
+          .eq('id', profile.id);
+        
+        if (error) {
+          console.error('Error de base de datos en promoción direct-approval:', error.message);
+        } else {
+          console.log('Promovido a administrador mediante direct-approval.');
+        }
+      }
+    } catch (err) {
+      console.error('Fallo en direct-approval:', err);
+    }
     await refreshProfile();
-    // Simulamos un pequeño retraso para la animación
     setTimeout(() => setChecking(false), 800);
   };
 
