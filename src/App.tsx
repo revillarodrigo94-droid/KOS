@@ -4,6 +4,7 @@ import { Login } from './components/Login';
 import { WaitingApproval } from './components/WaitingApproval';
 import { AdminUserApproval } from './components/AdminUserApproval';
 import { TemperaturasAPPCC } from './components/TemperaturasAPPCC';
+import { InventarioActivo } from './components/InventarioActivo';
 import { 
   LogOut, 
   GraduationCap, 
@@ -134,7 +135,7 @@ const DashboardContent: React.FC = () => {
       case 'temperaturas':
         return <TemperaturasAPPCC />;
       case 'inventario':
-        return <div style={styles.tabPlaceholder}><h2>Inventario Activo y Stock</h2><p>Próximamente en Fase 4.</p></div>;
+        return <InventarioActivo />;
       case 'briefing':
         return <div style={styles.tabPlaceholder}><h2>Briefing de Elaboraciones y Menú</h2><p>Próximamente en Fase 5.</p></div>;
       case 'checklists':
