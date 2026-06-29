@@ -69,7 +69,12 @@ export const InventarioActivo: React.FC = () => {
   const [showAjusteModal, setShowAjusteModal] = useState(false);
   const [ajusteStockId, setAjusteStockId] = useState<string | null>(null);
   const [ajusteCantidad, setAjusteCantidad] = useState('');
+  const [ajusteStockMinimo, setAjusteStockMinimo] = useState('');
   const [ajusteIngredienteNombre, setAjusteIngredienteNombre] = useState('');
+
+  // Escáner QR Express Simulado
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrQuery, setQrQuery] = useState('');
 
   // Notificaciones
   const [errorMsg, setErrorMsg] = useState('');
@@ -317,8 +322,13 @@ export const InventarioActivo: React.FC = () => {
     setSuccessMsg('');
 
     const nuevaCant = parseFloat(ajusteCantidad);
+    const nuevoMin = parseFloat(ajusteStockMinimo);
     if (isNaN(nuevaCant) || nuevaCant < 0) {
       alert('La cantidad debe ser un número igual o mayor a cero.');
+      return;
+    }
+    if (isNaN(nuevoMin) || nuevoMin < 0) {
+      alert('El stock mínimo debe ser un número igual o mayor a cero.');
       return;
     }
 
@@ -327,6 +337,7 @@ export const InventarioActivo: React.FC = () => {
         .from('inventario_activo')
         .update({
           cantidad: nuevaCant,
+          stock_minimo: nuevoMin,
           ultima_modificacion_por: profile?.id,
           actualizado_en: new Date().toISOString()
         })
@@ -335,13 +346,32 @@ export const InventarioActivo: React.FC = () => {
       if (error) {
         alert('Error al ajustar: ' + error.message);
       } else {
-        setSuccessMsg(`Stock de ${ajusteIngredienteNombre} ajustado directamente a ${nuevaCant}`);
+        setSuccessMsg(`Stock de ${ajusteIngredienteNombre} ajustado directamente a ${nuevaCant} (Mínimo: ${nuevoMin})`);
         setShowAjusteModal(false);
         setAjusteCantidad('');
+        setAjusteStockMinimo('');
         fetchStockActivo();
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Simulación del escáner QR
+  const handleSimularQR = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!qrQuery.trim()) return;
+
+    const query = qrQuery.trim().toLowerCase();
+    const match = listaMaestra.find(item => item.nombre.toLowerCase().includes(query));
+
+    if (match) {
+      setIngredienteSelected(match);
+      setSuccessMsg(`Código QR detectado: ${match.nombre} asignado correctamente.`);
+      setShowQRModal(false);
+      setQrQuery('');
+    } else {
+      alert('Código QR no reconocido. Intenta con ingredientes base como "harina", "aceite", "arroz" o "sal".');
     }
   };
 
@@ -426,7 +456,31 @@ export const InventarioActivo: React.FC = () => {
 
             {/* Formulario Registro de Movimientos */}
             <div style={styles.movimientoCard}>
-              <div style={styles.panelTitle}>Registrar Movimiento</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={styles.panelTitle}>Registrar Movimiento</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQrQuery('');
+                    setShowQRModal(true);
+                  }}
+                  style={{
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    color: 'var(--accent)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: '16px',
+                    padding: '4px 10px',
+                    fontSize: '0.7rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  📷 Escáner QR
+                </button>
+              </div>
               <form onSubmit={handleRegisterMovimiento} style={styles.movForm}>
                 <div style={styles.inputGroup}>
                   <label style={styles.inputLabel}>Ingrediente (Lista Maestra)</label>
@@ -524,7 +578,45 @@ export const InventarioActivo: React.FC = () => {
 
           {/* Panel Derecho: Tabla de existencias */}
           <div style={styles.mainPanel}>
-            <div style={styles.panelTitle}>Existencias en {nombresZonas[zonaSelected]}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={styles.panelTitle}>Existencias en {nombresZonas[zonaSelected]}</div>
+              {stockActivo.filter(item => item.cantidad < (item.stock_minimo ?? 2.0)).length > 0 && (
+                <span style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                  color: '#ef4444',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <AlertCircle size={14} />
+                  {stockActivo.filter(item => item.cantidad < (item.stock_minimo ?? 2.0)).length} BAJO MÍNIMO
+                </span>
+              )}
+            </div>
+
+            {stockActivo.filter(item => item.cantidad < (item.stock_minimo ?? 2.0)).length > 0 && (
+              <div style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid var(--danger)',
+                color: '#ef4444',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.85rem',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: '600'
+              }}>
+                <AlertCircle size={16} />
+                <span>Atención: Hay ingredientes en estado crítico por debajo del stock mínimo en esta zona.</span>
+              </div>
+            )}
 
             {loadingData ? (
               <div style={styles.loaderWrapper}>
@@ -542,48 +634,70 @@ export const InventarioActivo: React.FC = () => {
                     <tr>
                       <th style={styles.th}>Ingrediente</th>
                       <th style={styles.th}>Categoría</th>
-                      <th style={styles.th}>Cantidad</th>
+                      <th style={styles.th}>Cantidad Actual</th>
+                      <th style={styles.th}>Stock Mínimo</th>
                       <th style={styles.th}>Última Modificación</th>
                       {isAdmin && <th style={styles.th}>Ajustes</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {stockActivo.map(item => (
-                      <tr key={item.id} style={styles.tr}>
-                        <td style={{...styles.td, fontWeight: 600}}>{item.ingrediente_nombre}</td>
-                        <td style={styles.td}>
-                          <span style={styles.categoryBadge}>{item.ingrediente_categoria}</span>
-                        </td>
-                        <td style={{...styles.td, fontFamily: 'var(--font-mono)', fontWeight: 600}}>
-                          {item.cantidad} <span style={{color: 'var(--text-secondary)', fontWeight: 400}}>{item.ingrediente_unidad}</span>
-                        </td>
-                        <td style={styles.td}>
-                          <div style={styles.tdMeta}>
-                            <span>Por: {item.usuario_nombre}</span>
-                            <span style={styles.timeLabel}>
-                              {new Date(item.actualizado_en).toLocaleDateString('es-ES')} a las {new Date(item.actualizado_en).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        </td>
-                        {isAdmin && (
-                          <td style={styles.td}>
-                            <button 
-                              onClick={() => {
-                                setAjusteStockId(item.id);
-                                setAjusteIngredienteNombre(item.ingrediente_nombre || '');
-                                setAjusteCantidad(String(item.cantidad));
-                                setShowAjusteModal(true);
-                              }}
-                              style={styles.adjustBtn}
-                              title="Ajuste de inventario del administrador"
-                            >
-                              <Sliders size={14} />
-                              Ajustar
-                            </button>
+                    {stockActivo.map(item => {
+                      const bajoMinimo = item.cantidad < (item.stock_minimo ?? 2.0);
+                      return (
+                        <tr 
+                          key={item.id} 
+                          style={{
+                            ...styles.tr,
+                            ...(bajoMinimo ? {
+                              borderLeft: '4px solid var(--danger)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.03)'
+                            } : {})
+                          }}
+                        >
+                          <td style={{...styles.td, fontWeight: 600}}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {bajoMinimo && <AlertCircle size={14} color="#ef4444" title="Alerta: Bajo stock mínimo" />}
+                              {item.ingrediente_nombre}
+                            </div>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td style={styles.td}>
+                            <span style={styles.categoryBadge}>{item.ingrediente_categoria}</span>
+                          </td>
+                          <td style={{...styles.td, fontFamily: 'var(--font-mono)', fontWeight: 600, color: bajoMinimo ? '#ef4444' : 'var(--text-primary)'}}>
+                            {item.cantidad} <span style={{color: 'var(--text-secondary)', fontWeight: 400}}>{item.ingrediente_unidad}</span>
+                          </td>
+                          <td style={{...styles.td, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)'}}>
+                            {item.stock_minimo ?? 2.0} <span style={{fontSize: '0.75rem'}}>{item.ingrediente_unidad}</span>
+                          </td>
+                          <td style={styles.td}>
+                            <div style={styles.tdMeta}>
+                              <span>Por: {item.usuario_nombre}</span>
+                              <span style={styles.timeLabel}>
+                                {new Date(item.actualizado_en).toLocaleDateString('es-ES')} a las {new Date(item.actualizado_en).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </td>
+                          {isAdmin && (
+                            <td style={styles.td}>
+                              <button 
+                                onClick={() => {
+                                  setAjusteStockId(item.id);
+                                  setAjusteIngredienteNombre(item.ingrediente_nombre || '');
+                                  setAjusteCantidad(String(item.cantidad));
+                                  setAjusteStockMinimo(String(item.stock_minimo ?? 2.0));
+                                  setShowAjusteModal(true);
+                                }}
+                                style={styles.adjustBtn}
+                                title="Ajuste de inventario del administrador"
+                              >
+                                <Sliders size={14} />
+                                Ajustar
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -774,11 +888,109 @@ export const InventarioActivo: React.FC = () => {
                   style={styles.modalInput}
                   required
                 />
-                <p style={styles.helpText}>Este ajuste modificará directamente la cantidad real en almacén, registrándose en el log de auditoría como un ajuste directo del administrador.</p>
+              </div>
+
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Stock Mínimo de Seguridad</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  value={ajusteStockMinimo} 
+                  onChange={(e) => setAjusteStockMinimo(e.target.value)} 
+                  style={styles.modalInput}
+                  required
+                />
+                <p style={styles.helpText}>Si las existencias caen por debajo de este valor, se marcará el producto como "Bajo Stock".</p>
               </div>
 
               <button type="submit" style={styles.saveBtn}>
                 Aplicar Ajuste Físico
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ESCÁNER QR SIMULADO */}
+      {showQRModal && (
+        <div style={styles.modalOverlay}>
+          <div style={{...styles.modalCard, maxWidth: '400px'}}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Escáner QR Express (Simulación)</h3>
+              <button onClick={() => setShowQRModal(false)} style={styles.closeBtn}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSimularQR} style={styles.modalForm}>
+              <div style={{
+                height: '160px',
+                backgroundColor: '#000',
+                borderRadius: '8px',
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid var(--border-color)',
+                marginBottom: '10px'
+              }}>
+                {/* Cuadro de escaneo */}
+                <div style={{
+                  width: '100px',
+                  height: '100px',
+                  border: '2px solid var(--accent)',
+                  borderRadius: '12px',
+                  boxShadow: '0 0 15px rgba(245, 158, 11, 0.4)',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <div style={{
+                    width: '100%',
+                    height: '2px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    position: 'absolute',
+                    animation: 'kos-scan-line 2s linear infinite'
+                  }} />
+                </div>
+                <span style={{ position: 'absolute', bottom: '8px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>APUNTAR A ETIQUETA QR</span>
+              </div>
+
+              {/* Agregar estilos CSS de animación del scanner line en el document */}
+              {(() => {
+                const scanStyleId = 'kos-scan-line-style';
+                if (typeof document !== 'undefined' && !document.getElementById(scanStyleId)) {
+                  const styleTag = document.createElement('style');
+                  styleTag.id = scanStyleId;
+                  styleTag.textContent = `
+                    @keyframes kos-scan-line {
+                      0%, 100% { top: 0%; }
+                      50% { top: 100%; }
+                    }
+                  `;
+                  document.head.appendChild(styleTag);
+                }
+                return null;
+              })()}
+
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Simular Código QR Leído</label>
+                <input 
+                  type="text" 
+                  placeholder="Escribe el nombre del ingrediente base... (Ej. Harina)" 
+                  value={qrQuery} 
+                  onChange={(e) => setQrQuery(e.target.value)} 
+                  style={styles.modalInput}
+                  required
+                  autoFocus
+                />
+                <p style={styles.helpText}>Escribe cualquier ingrediente de la lista maestra. El sistema auto-completará su selección al instante al detectar el QR.</p>
+              </div>
+
+              <button type="submit" style={styles.saveBtn}>
+                Escanear Código QR
               </button>
             </form>
           </div>

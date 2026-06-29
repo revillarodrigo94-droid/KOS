@@ -6,6 +6,8 @@ export type ZonaAlmacen = 'economato' | 'bodega' | 'camaras' | 'refrigeradora' |
 export type InventarioOperacion = 'entrada' | 'salida' | 'ajuste';
 export type IncidenciaTipo = 'averia' | 'rotura' | 'extravio' | 'peligro' | 'otro';
 export type IncidenciaEstado = 'pendiente' | 'notificado_centro' | 'resuelto';
+export type IncidenciaPrioridad = 'baja' | 'media' | 'critica';
+export type InsigniaTipo = 'chef_estrella' | 'uniforme_gala' | 'guardian_higiene' | 'maestro_fuego' | 'corazon_cocina' | 'pesadilla';
 
 export interface Usuario {
   id: string;
@@ -78,6 +80,7 @@ export interface InventarioActivo {
   ingrediente_id: string;
   zona: ZonaAlmacen;
   cantidad: number;
+  stock_minimo: number;
   ultima_modificacion_por: string | null;
   actualizado_en: string;
 }
@@ -98,6 +101,9 @@ export interface Elaboracion {
   nombre: string;
   descripcion: string | null;
   alergenos: string[]; // Listado de alérgenos activos
+  coste_materia_prima: number;
+  raciones_previstas: number;
+  partida: string;
   creado_by: string | null;
 }
 
@@ -119,6 +125,9 @@ export interface JefeCocina {
   observaciones_limpieza: string | null;
   firmado: boolean;
   firmado_en: string | null;
+  firma_nombre: string | null;
+  fotos_revision: string[];
+  comentario_revision: string | null;
 }
 
 export interface ChecklistProduccionTarea {
@@ -157,7 +166,23 @@ export interface Incidencia {
   tipo: IncidenciaTipo;
   descripcion: string;
   estado: IncidenciaEstado;
+  prioridad: IncidenciaPrioridad;
   fecha: string;
+}
+
+export interface RespuestaIncidencia {
+  id: string;
+  incidencia_id: string;
+  usuario_id: string;
+  mensaje: string;
+  creado_en: string;
+}
+
+export interface InsigniaAlumno {
+  id: string;
+  alumno_id: string;
+  tipo_insignia: InsigniaTipo;
+  fecha_otorgada: string;
 }
 
 export interface SupervisionTaller {

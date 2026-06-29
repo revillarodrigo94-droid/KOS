@@ -15,6 +15,35 @@ export const Login: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Restablecer contraseña
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) return;
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: window.location.origin
+      });
+
+      if (resetError) {
+        setError(resetError.message);
+      } else {
+        setSuccess('Se ha enviado un correo electrónico con instrucciones para restablecer tu contraseña.');
+        setShowResetPassword(false);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al enviar el correo de recuperación.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -73,24 +102,26 @@ export const Login: React.FC = () => {
         </div>
 
         {/* Pestanas Login / Registro */}
-        <div style={styles.tabContainer}>
-          <button 
-            style={{...styles.tabButton, ...(isLogin ? styles.activeTab : {})}} 
-            onClick={() => { setIsLogin(true); setError(''); setSuccess(''); }}
-            disabled={submitting}
-          >
-            <LogIn size={16} />
-            Iniciar Sesión
-          </button>
-          <button 
-            style={{...styles.tabButton, ...(!isLogin ? styles.activeTab : {})}} 
-            onClick={() => { setIsLogin(false); setError(''); setSuccess(''); }}
-            disabled={submitting}
-          >
-            <UserPlus size={16} />
-            Registrarse
-          </button>
-        </div>
+        {!showResetPassword && (
+          <div style={styles.tabContainer}>
+            <button 
+              style={{...styles.tabButton, ...(isLogin ? styles.activeTab : {})}} 
+              onClick={() => { setIsLogin(true); setError(''); setSuccess(''); }}
+              disabled={submitting}
+            >
+              <LogIn size={16} />
+              Iniciar Sesión
+            </button>
+            <button 
+              style={{...styles.tabButton, ...(!isLogin ? styles.activeTab : {})}} 
+              onClick={() => { setIsLogin(false); setError(''); setSuccess(''); }}
+              disabled={submitting}
+            >
+              <UserPlus size={16} />
+              Registrarse
+            </button>
+          </div>
+        )}
 
         {/* Alertas */}
         {error && (
@@ -105,112 +136,179 @@ export const Login: React.FC = () => {
           </div>
         )}
 
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} style={styles.form}>
-          {!isLogin && (
-            <div style={styles.row}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Nombre</label>
-                <div style={styles.inputWrapper}>
-                  <User size={16} style={styles.inputIcon} />
-                  <input 
-                    type="text" 
-                    placeholder="Ej. Juan" 
-                    value={nombre} 
-                    onChange={(e) => setNombre(e.target.value)} 
-                    style={styles.input}
-                    required={!isLogin}
-                  />
-                </div>
-              </div>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Apellidos</label>
-                <div style={styles.inputWrapper}>
-                  <User size={16} style={styles.inputIcon} />
-                  <input 
-                    type="text" 
-                    placeholder="Ej. Pérez" 
-                    value={apellidos} 
-                    onChange={(e) => setApellidos(e.target.value)} 
-                    style={styles.input}
-                    required={!isLogin}
-                  />
-                </div>
-              </div>
+        {/* Formulario Recuperación */}
+        {showResetPassword ? (
+          <form onSubmit={handleResetPassword} style={styles.form}>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>Recuperar Contraseña</h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Introduce tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.</p>
             </div>
-          )}
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Correo Electrónico</label>
-            <div style={styles.inputWrapper}>
-              <Mail size={16} style={styles.inputIcon} />
-              <input 
-                type="email" 
-                placeholder="nombre@centro.edu" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                style={styles.input}
-                required
-              />
-            </div>
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Contraseña</label>
-            <div style={styles.inputWrapper}>
-              <KeyRound size={16} style={styles.inputIcon} />
-              <input 
-                type="password" 
-                placeholder="••••••••" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                style={styles.input}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Selector de Rol en Registro */}
-          {!isLogin && (
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Rol Solicitado</label>
-              <div style={styles.roleSelector}>
-                <button
-                  type="button"
-                  style={{
-                    ...styles.roleButton, 
-                    ...(rol === 'alumno' ? styles.activeRoleAlumno : {})
-                  }}
-                  onClick={() => setRol('alumno')}
-                >
-                  <GraduationCap size={18} />
-                  <div>
-                    <div style={styles.roleName}>Alumno</div>
-                    <div style={styles.roleDesc}>Registrar temperaturas, inventario, checklists.</div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    ...styles.roleButton, 
-                    ...(rol === 'profesor' ? styles.activeRoleProfesor : {})
-                  }}
-                  onClick={() => setRol('profesor')}
-                >
-                  <User size={18} />
-                  <div>
-                    <div style={styles.roleName}>Profesor</div>
-                    <div style={styles.roleDesc}>Gestionar grupos, checklists, evaluación taller.</div>
-                  </div>
-                </button>
+              <label style={styles.label}>Correo Electrónico</label>
+              <div style={styles.inputWrapper}>
+                <Mail size={16} style={styles.inputIcon} />
+                <input 
+                  type="email" 
+                  placeholder="nombre@centro.edu" 
+                  value={resetEmail} 
+                  onChange={(e) => setResetEmail(e.target.value)} 
+                  style={styles.input}
+                  required
+                />
               </div>
             </div>
-          )}
 
-          <button type="submit" disabled={submitting} style={styles.submitBtn}>
-            {submitting ? 'Procesando...' : isLogin ? 'Entrar a KitchenOS' : 'Solicitar Registro'}
-          </button>
-        </form>
+            <button type="submit" disabled={submitting} style={styles.submitBtn}>
+              {submitting ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
+            </button>
+
+            <button 
+              type="button" 
+              onClick={() => { setShowResetPassword(false); setError(''); setSuccess(''); }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent)',
+                fontSize: '0.8rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                marginTop: '12px',
+                textAlign: 'center',
+                width: '100%'
+              }}
+            >
+              Volver al inicio de sesión
+            </button>
+          </form>
+        ) : (
+          /* Formulario Normal */
+          <form onSubmit={handleSubmit} style={styles.form}>
+            {!isLogin && (
+              <div style={styles.row}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Nombre</label>
+                  <div style={styles.inputWrapper}>
+                    <User size={16} style={styles.inputIcon} />
+                    <input 
+                      type="text" 
+                      placeholder="Ej. Juan" 
+                      value={nombre} 
+                      onChange={(e) => setNombre(e.target.value)} 
+                      style={styles.input}
+                      required={!isLogin}
+                    />
+                  </div>
+                </div>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Apellidos</label>
+                  <div style={styles.inputWrapper}>
+                    <User size={16} style={styles.inputIcon} />
+                    <input 
+                      type="text" 
+                      placeholder="Ej. Pérez" 
+                      value={apellidos} 
+                      onChange={(e) => setApellidos(e.target.value)} 
+                      style={styles.input}
+                      required={!isLogin}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Correo Electrónico</label>
+              <div style={styles.inputWrapper}>
+                <Mail size={16} style={styles.inputIcon} />
+                <input 
+                  type="email" 
+                  placeholder="nombre@centro.edu" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  style={styles.input}
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={styles.inputGroup}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={styles.label}>Contraseña</label>
+                {isLogin && (
+                  <button 
+                    type="button" 
+                    onClick={() => { setShowResetPassword(true); setError(''); setSuccess(''); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--accent)',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      padding: 0,
+                      marginBottom: '4px'
+                    }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
+              </div>
+              <div style={styles.inputWrapper}>
+                <KeyRound size={16} style={styles.inputIcon} />
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  style={styles.input}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Selector de Rol en Registro */}
+            {!isLogin && (
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Rol Solicitado</label>
+                <div style={styles.roleSelector}>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.roleButton, 
+                      ...(rol === 'alumno' ? styles.activeRoleAlumno : {})
+                    }}
+                    onClick={() => setRol('alumno')}
+                  >
+                    <GraduationCap size={18} />
+                    <div>
+                      <div style={styles.roleName}>Alumno</div>
+                      <div style={styles.roleDesc}>Registrar temperaturas, inventario, checklists.</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.roleButton, 
+                      ...(rol === 'profesor' ? styles.activeRoleProfesor : {})
+                    }}
+                    onClick={() => setRol('profesor')}
+                  >
+                    <User size={18} />
+                    <div>
+                      <div style={styles.roleName}>Profesor</div>
+                      <div style={styles.roleDesc}>Gestionar grupos, checklists, evaluación taller.</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button type="submit" disabled={submitting} style={styles.submitBtn}>
+              {submitting ? 'Procesando...' : isLogin ? 'Entrar a KitchenOS' : 'Solicitar Registro'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

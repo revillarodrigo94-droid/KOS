@@ -40,6 +40,9 @@ export const BriefingServicio: React.FC = () => {
   const [nombrePlato, setNombrePlato] = useState('');
   const [descripcionPlato, setDescripcionPlato] = useState('');
   const [alergenosSeleccionados, setAlergenosSeleccionados] = useState<string[]>([]);
+  const [costeMateriaPrima, setCosteMateriaPrima] = useState('0');
+  const [racionesPrevistas, setRacionesPrevistas] = useState('1');
+  const [partida, setPartida] = useState('General');
 
   // Formulario de Programación de Menú/Carta
   const [grupoSeleccionado, setGrupoSeleccionado] = useState('');
@@ -168,6 +171,9 @@ export const BriefingServicio: React.FC = () => {
           nombre: nombrePlato.trim(),
           descripcion: descripcionPlato.trim(),
           alergenos: alergenosSeleccionados,
+          coste_materia_prima: parseFloat(costeMateriaPrima) || 0,
+          raciones_previstas: parseInt(racionesPrevistas) || 1,
+          partida: partida,
           creado_by: profile?.id
         }]);
 
@@ -177,6 +183,9 @@ export const BriefingServicio: React.FC = () => {
       setNombrePlato('');
       setDescripcionPlato('');
       setAlergenosSeleccionados([]);
+      setCosteMateriaPrima('0');
+      setRacionesPrevistas('1');
+      setPartida('General');
       setActiveTab('visualizar');
       fetchData();
     } catch (err: any) {
@@ -308,43 +317,78 @@ export const BriefingServicio: React.FC = () => {
                   </span>
                 </div>
 
-                {cartaHoy && cartaHoy.elaboracionesList.length > 0 ? (
-                  <div style={styles.platosList}>
-                    {cartaHoy.elaboracionesList.map((plato, idx) => (
-                      <div key={plato.id} style={styles.platoDetailCard}>
-                        <div style={styles.platoHeader}>
-                          <span style={styles.platoIndex}>Plato {idx + 1}</span>
-                          <h3 style={styles.platoTitle}>{plato.nombre}</h3>
-                        </div>
-                        <p style={styles.platoDesc}>{plato.descripcion || 'Sin descripción técnica asignada.'}</p>
-                        
-                        {/* Alérgenos oficiales de este plato */}
-                        <div style={{ marginTop: '20px' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Alérgenos Declarados (Regulación UE)
-                          </span>
-                          <div style={styles.allergensGrid}>
-                            {plato.alergenos.length === 0 ? (
-                              <div style={{ fontSize: '0.8rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Check size={14} /> Libre de alérgenos declarados.
-                              </div>
-                            ) : (
-                              plato.alergenos.map(alId => {
-                                const elAl = listaAlergenos.find(a => a.id === alId);
-                                return (
-                                  <div key={alId} style={styles.allergenLabel} title={elAl?.desc}>
-                                    <div style={styles.allergenPoint}></div>
-                                    <span style={{ fontWeight: 600 }}>{elAl?.nombre}</span>
+                {cartaHoy && cartaHoy.elaboracionesList.length > 0 ? (() => {
+                  const platosPorPartida: Record<string, Elaboracion[]> = {};
+                  cartaHoy.elaboracionesList.forEach(plato => {
+                    const part = plato.partida || 'General';
+                    if (!platosPorPartida[part]) platosPorPartida[part] = [];
+                    platosPorPartida[part].push(plato);
+                  });
+
+                  return (
+                    <div style={styles.platosList}>
+                      {Object.keys(platosPorPartida).map((partKey) => (
+                        <div key={partKey} style={{ marginBottom: '24px' }}>
+                          <h4 style={{
+                            fontSize: '0.8rem',
+                            fontWeight: '800',
+                            color: 'var(--accent)',
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            borderBottom: '1px dashed var(--border-color)',
+                            paddingBottom: '6px',
+                            marginBottom: '14px'
+                          }}>
+                            📂 Estación / Partida: {partKey} ({platosPorPartida[partKey].length})
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {platosPorPartida[partKey].map((plato, idx) => (
+                              <div key={plato.id} style={styles.platoDetailCard}>
+                                <div style={styles.platoHeader}>
+                                  <span style={styles.platoIndex}>Plato {idx + 1}</span>
+                                  <h3 style={styles.platoTitle}>{plato.nombre}</h3>
+                                </div>
+                                <p style={styles.platoDesc}>{plato.descripcion || 'Sin descripción técnica asignada.'}</p>
+                                
+                                {/* Coste por ración en carta del alumno */}
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span>Escandallo: </span>
+                                  <strong style={{ color: 'var(--text-primary)' }}>
+                                    {plato.coste_materia_prima && plato.raciones_previstas ? (plato.coste_materia_prima / plato.raciones_previstas).toFixed(2) : '0.00'} € / ración
+                                  </strong>
+                                </div>
+
+                                {/* Alérgenos oficiales de este plato */}
+                                <div style={{ marginTop: '20px' }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Alérgenos Declarados (Regulación UE)
+                                  </span>
+                                  <div style={styles.allergensGrid}>
+                                    {plato.alergenos.length === 0 ? (
+                                      <div style={{ fontSize: '0.8rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <Check size={14} /> Libre de alérgenos declarados.
+                                      </div>
+                                    ) : (
+                                      plato.alergenos.map(alId => {
+                                        const elAl = listaAlergenos.find(a => a.id === alId);
+                                        return (
+                                          <div key={alId} style={styles.allergenLabel} title={elAl?.desc}>
+                                            <div style={styles.allergenPoint}></div>
+                                            <span style={{ fontWeight: 600 }}>{elAl?.nombre}</span>
+                                          </div>
+                                        );
+                                      })
+                                    )}
                                   </div>
-                                );
-                              })
-                            )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
+                      ))}
+                    </div>
+                  );
+                })() : (
                   <div style={styles.emptyBox}>No hay platos programados en la carta para el servicio de hoy.</div>
                 )}
               </div>
@@ -356,21 +400,37 @@ export const BriefingServicio: React.FC = () => {
                   {elaboraciones.length === 0 ? (
                     <div style={styles.emptyBox}>No hay elaboraciones registradas.</div>
                   ) : (
-                    elaboraciones.map(elab => (
-                      <div key={elab.id} style={styles.recetarioItem}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{elab.nombre}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: '1.3' }}>
-                            {elab.descripcion ? elab.descripcion.substring(0, 80) + '...' : 'Sin descripción.'}
-                          </div>
-                        </div>
-                        {elab.alergenos.length > 0 && (
-                          <div style={styles.badgeCount}>
-                            {elab.alergenos.length} alérgenos
-                          </div>
-                        )}
-                      </div>
-                    ))
+                     elaboraciones.map(elab => (
+                       <div key={elab.id} style={styles.recetarioItem}>
+                         <div style={{ flex: 1 }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                             <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{elab.nombre}</div>
+                             <span style={{
+                               fontSize: '0.65rem',
+                               padding: '2px 8px',
+                               borderRadius: '10px',
+                               border: '1px solid var(--border-color)',
+                               backgroundColor: 'var(--bg-primary)',
+                               color: 'var(--accent)',
+                               fontWeight: '700'
+                             }}>
+                               {elab.partida || 'General'}
+                             </span>
+                           </div>
+                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.3' }}>
+                             {elab.descripcion ? elab.descripcion.substring(0, 80) + '...' : 'Sin descripción.'}
+                           </div>
+                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                             Coste: <strong style={{ color: 'var(--text-primary)' }}>{elab.coste_materia_prima && elab.raciones_previstas ? (elab.coste_materia_prima / elab.raciones_previstas).toFixed(2) : '0.00'} €/ración</strong>
+                           </div>
+                         </div>
+                         {elab.alergenos.length > 0 && (
+                           <div style={styles.badgeCount}>
+                             {elab.alergenos.length} alérgenos
+                           </div>
+                         )}
+                       </div>
+                     ))
                   )}
                 </div>
               </div>
@@ -435,7 +495,68 @@ export const BriefingServicio: React.FC = () => {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={savingElab || !nombrePlato.trim()} style={styles.submitBtn}>
+                  {/* Escandallo y Partida */}
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '16px' }}>
+                    <div style={{ ...styles.inputGroup, flex: 1, minWidth: '120px' }}>
+                      <label style={styles.label}>Coste Materia Prima (€)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        value={costeMateriaPrima}
+                        onChange={(e) => setCosteMateriaPrima(e.target.value)}
+                        style={styles.input}
+                        disabled={savingElab}
+                        required
+                      />
+                    </div>
+                    <div style={{ ...styles.inputGroup, flex: 1, minWidth: '120px' }}>
+                      <label style={styles.label}>Raciones Previstas</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={racionesPrevistas}
+                        onChange={(e) => setRacionesPrevistas(e.target.value)}
+                        style={styles.input}
+                        disabled={savingElab}
+                        required
+                      />
+                    </div>
+                    <div style={{ ...styles.inputGroup, flex: 2, minWidth: '180px' }}>
+                      <label style={styles.label}>Partida / Estación de Taller</label>
+                      <select 
+                        value={partida}
+                        onChange={(e) => setPartida(e.target.value)}
+                        style={styles.select}
+                        disabled={savingElab}
+                        required
+                      >
+                        <option value="General">General</option>
+                        <option value="Entrantes/Fríos">Entrantes / Fríos</option>
+                        <option value="Calientes/Carnes">Calientes / Carnes</option>
+                        <option value="Pescados/Mariscos">Pescados / Mariscos</option>
+                        <option value="Repostería/Pastelería">Repostería / Pastelería</option>
+                        <option value="Guarniciones">Guarniciones</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    marginTop: '12px', 
+                    padding: '10px 14px', 
+                    backgroundColor: 'var(--bg-primary)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <span>Coste Unitario Calculado: </span>
+                    <strong style={{ color: 'var(--accent)', fontSize: '0.9rem' }}>
+                      {(parseFloat(costeMateriaPrima) / (parseInt(racionesPrevistas) || 1)).toFixed(2)} € / ración
+                    </strong>
+                  </div>
+
+                  <button type="submit" disabled={savingElab || !nombrePlato.trim()} style={{ ...styles.submitBtn, marginTop: '16px' }}>
                     {savingElab ? 'Guardando Elaboración...' : 'Guardar Ficha Técnica'}
                   </button>
                 </form>

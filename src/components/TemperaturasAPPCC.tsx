@@ -49,6 +49,12 @@ export const TemperaturasAPPCC: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Gráfico de Tendencia Térmica
+  const [graficoCamaraId, setGraficoCamaraId] = useState('');
+  const [lecturasGrafico, setLecturasGrafico] = useState<RegistroTemperatura[]>([]);
+  const [loadingGrafico, setLoadingGrafico] = useState(false);
+  const [activePoint, setActivePoint] = useState<RegistroTemperatura | null>(null);
+
   // 1. Cargar Cámaras Activas
   const fetchCamaras = async () => {
     setLoadingCamaras(true);
@@ -62,10 +68,14 @@ export const TemperaturasAPPCC: React.FC = () => {
       if (error) {
         console.error('Error fetching camaras:', error.message);
       } else {
-        setCamaras(data as Camara[]);
+        const cams = data as Camara[];
+        setCamaras(cams);
+        if (cams.length > 0 && !graficoCamaraId) {
+          setGraficoCamaraId(cams[0].id);
+        }
         // Inicializar inputs vacíos
         const initialInputs: { [id: string]: string } = {};
-        (data as Camara[]).forEach(c => {
+        cams.forEach(c => {
           initialInputs[c.id] = '';
         });
         setTemperaturasInput(initialInputs);
@@ -76,6 +86,31 @@ export const TemperaturasAPPCC: React.FC = () => {
       setLoadingCamaras(false);
     }
   };
+
+  // Cargar lecturas para el gráfico de tendencia térmica
+  const fetchLecturasGrafico = async () => {
+    if (!graficoCamaraId) return;
+    setLoadingGrafico(true);
+    try {
+      const { data, error } = await supabase
+        .from('registro_temperaturas')
+        .select('*')
+        .eq('camara_id', graficoCamaraId)
+        .order('creado_en', { ascending: true })
+        .limit(10); // Cargar las últimas 10 lecturas
+
+      if (error) throw error;
+      setLecturasGrafico(data || []);
+    } catch (err) {
+      console.error('Error loading graphic data:', err);
+    } finally {
+      setLoadingGrafico(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLecturasGrafico();
+  }, [graficoCamaraId]);
 
   // 2. Cargar Histórico de Registros (Solo Profesores/Admin)
   const fetchRegistros = async () => {
@@ -404,6 +439,207 @@ export const TemperaturasAPPCC: React.FC = () => {
             Guardar Lecturas Diarias
           </button>
         </form>
+      )}
+
+      {/* GRÁFICO DE TENDENCIA TÉRMICA (PROFESORES Y ADMIN) */}
+      {(isProfesor || isAdmin) && (
+        <div style={{
+          backgroundColor: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '16px',
+          padding: '24px',
+          marginBottom: '30px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              📈 Gráfico de Tendencia Térmica Semanal
+            </h3>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Seleccionar Cámara:</span>
+              <select
+                value={graficoCamaraId}
+                onChange={(e) => setGraficoCamaraId(e.target.value)}
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {camaras.map(cam => (
+                  <option key={cam.id} value={cam.id}>{cam.nombre}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {loadingGrafico ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
+              <Loader2 size={24} className="spin-animation" color="var(--accent)" />
+              <span style={{ fontSize: '0.8rem', marginTop: '8px' }}>Cargando datos del gráfico...</span>
+            </div>
+          ) : lecturasGrafico.length === 0 ? (
+            <div style={{ padding: '40px', border: '1px dashed var(--border-color)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              No hay lecturas registradas para esta cámara para graficar.
+            </div>
+          ) : (() => {
+            const cam = camaras.find(c => c.id === graficoCamaraId);
+            const limite = cam?.temperatura_limite ?? 4.0;
+            const temps = lecturasGrafico.map(l => Number(l.temperatura));
+            
+            // Escala Y automática
+            let minTemp = Math.min(...temps, limite) - 2;
+            let maxTemp = Math.max(...temps, limite) + 2;
+            if (minTemp === maxTemp) {
+              minTemp -= 2;
+              maxTemp += 2;
+            }
+            const tempRange = maxTemp - minTemp;
+
+            // Mapear puntos a coordenadas SVG (viewBox: 0 0 500 240)
+            const width = 500;
+            const height = 240;
+            const paddingLeft = 40;
+            const paddingRight = 20;
+            const paddingTop = 25;
+            const paddingBottom = 40;
+
+            const plotWidth = width - paddingLeft - paddingRight;
+            const plotHeight = height - paddingTop - paddingBottom;
+
+            const points = lecturasGrafico.map((l, i) => {
+              const x = paddingLeft + (i * (plotWidth / (lecturasGrafico.length - 1 || 1)));
+              const y = height - paddingBottom - (((Number(l.temperatura) - minTemp) / tempRange) * plotHeight);
+              return { x, y, data: l };
+            });
+
+            const pointsStr = points.map(p => `${p.x},${p.y}`).join(' ');
+
+            // Coordenada Y de la línea límite
+            const yLimite = height - paddingBottom - (((limite - minTemp) / tempRange) * plotHeight);
+
+            return (
+              <div style={{ position: 'relative' }}>
+                <svg width="100%" height="240px" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block', backgroundColor: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  {/* Grid Lines Horizontales */}
+                  {[0, 0.25, 0.5, 0.75, 1].map((val, idx) => {
+                    const temp = minTemp + val * tempRange;
+                    const y = height - paddingBottom - (val * plotHeight);
+                    return (
+                      <g key={idx}>
+                        <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--border-color)" stroke-dasharray="2 4" />
+                        <text x={paddingLeft - 8} y={y + 4} fill="var(--text-muted)" font-size="8" text-anchor="end">{temp.toFixed(1)}°C</text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Línea Límite en Rojo */}
+                  {yLimite >= paddingTop && yLimite <= height - paddingBottom && (
+                    <g>
+                      <line x1={paddingLeft} y1={yLimite} x2={width - paddingRight} y2={yLimite} stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3 3" />
+                      <text x={width - paddingRight - 5} y={yLimite - 4} fill="#ef4444" font-size="8" font-weight="700" text-anchor="end">LÍMITE ({limite}°C)</text>
+                    </g>
+                  )}
+
+                  {/* Área bajo la curva */}
+                  {points.length > 1 && (
+                    <path
+                      d={`M ${points[0].x} ${height - paddingBottom} L ${pointsStr} L ${points[points.length - 1].x} ${height - paddingBottom} Z`}
+                      fill="rgba(245, 158, 11, 0.05)"
+                    />
+                  )}
+
+                  {/* Línea de tendencia */}
+                  {points.length > 1 && (
+                    <polyline
+                      fill="none"
+                      stroke="var(--accent)"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      points={pointsStr}
+                    />
+                  )}
+
+                  {/* Puntos de datos */}
+                  {points.map((p, i) => (
+                    <circle
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r="4"
+                      fill="var(--bg-card)"
+                      stroke={Number(p.data.temperatura) > limite ? '#ef4444' : 'var(--accent)'}
+                      stroke-width="2.5"
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={() => setActivePoint(p.data)}
+                      onMouseLeave={() => setActivePoint(null)}
+                    />
+                  ))}
+
+                  {/* Etiquetas de Eje X (Fecha y hora) */}
+                  {points.map((p, i) => {
+                    const date = new Date(p.data.creado_en);
+                    const formatted = `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    return (
+                      <text
+                        key={i}
+                        x={p.x}
+                        y={height - paddingBottom + 16}
+                        fill="var(--text-muted)"
+                        font-size="6.5"
+                        text-anchor="middle"
+                        transform={`rotate(-25, ${p.x}, ${height - paddingBottom + 16})`}
+                      >
+                        {formatted}
+                      </text>
+                    );
+                  })}
+                </svg>
+
+                {/* Tooltip Reactivo */}
+                {activePoint && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '12px',
+                    backgroundColor: 'rgba(15, 15, 17, 0.95)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    boxShadow: 'var(--shadow-lg)',
+                    pointerEvents: 'none',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 10
+                  }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      {new Date(activePoint.creado_en).toLocaleString('es-ES')}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {activePoint.temperatura}°C
+                      </span>
+                      <span style={{
+                        fontSize: '0.65rem',
+                        fontWeight: '700',
+                        backgroundColor: activePoint.alerta ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
+                        color: activePoint.alerta ? '#ef4444' : 'var(--success)',
+                        padding: '1px 6px',
+                        borderRadius: '10px'
+                      }}>
+                        {activePoint.alerta ? 'ALERTA' : 'CORRECTO'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       )}
 
       {/* SECCIÓN HISTÓRICO Y AUDITORÍA (PROFESORES Y ADMIN) */}

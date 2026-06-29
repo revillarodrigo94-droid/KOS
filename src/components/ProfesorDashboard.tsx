@@ -12,7 +12,8 @@ import {
   Sparkles, 
   Clock,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Calendar
 } from 'lucide-react';
 
 interface AlumnoEval {
@@ -201,7 +202,7 @@ export const ProfesorDashboard: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, justifyContent: 'center' }}>
             {/* Checklist Producción */}
             <div style={styles.checklistControlBlock}>
-              <div style={{ display: 'flex', justifyBetween: 'center', alignItems: 'flex-end', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px' }}>
                 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Checklist Producción (Jefe de Cocina)</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600 }}>75%</span>
               </div>
@@ -216,7 +217,7 @@ export const ProfesorDashboard: React.FC = () => {
 
             {/* Checklist Limpieza */}
             <div style={styles.checklistControlBlock}>
-              <div style={{ display: 'flex', justifyBetween: 'center', alignItems: 'flex-end', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px' }}>
                 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Protocolo Limpieza Aulas / Talleres</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>10%</span>
               </div>
@@ -247,6 +248,75 @@ export const ProfesorDashboard: React.FC = () => {
             <div style={{ display: 'flex', gap: '8px' }}>
               <div style={styles.allergenBadge}>Lácteos</div>
               <div style={styles.allergenBadge}>Vegetariano</div>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Calendario de Servicios de Taller (12 col en escritorio) */}
+        <section style={{...styles.bentoCard, ...styles.col12}}>
+          <div style={styles.cardHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={18} color="var(--accent)" />
+              <span style={styles.cardTag}>Calendario y Servicios Especiales</span>
+            </div>
+            <span style={styles.cardMeta}>Planificación de Taller</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginTop: '15px' }}>
+            {/* Grid del mes */}
+            <div style={{ flex: 1, minWidth: '260px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', textAlign: 'center', fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+                {Array.from({ length: 30 }, (_, i) => {
+                  const day = i + 1;
+                  const hasEvent = [4, 11, 18, 25, 29].includes(day);
+                  const isToday = day === 29;
+                  return (
+                    <div
+                      key={day}
+                      style={{
+                        height: '32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        borderRadius: '6px',
+                        backgroundColor: isToday ? 'var(--accent)' : hasEvent ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-primary)',
+                        color: isToday ? '#000' : hasEvent ? 'var(--accent)' : 'var(--text-primary)',
+                        border: hasEvent ? '1px solid var(--accent)' : '1px solid var(--border-color)',
+                        fontWeight: (isToday || hasEvent) ? 'bold' : 'normal',
+                      }}
+                    >
+                      {day}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Listado de eventos a la derecha */}
+            <div style={{ flex: 1.2, minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Eventos y Prácticas Programadas</span>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', padding: '10px 14px', borderRadius: '10px' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>🍽️ Servicio de Apertura al Público</strong>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Taller de Cocina 1 • 14:00h</div>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: '700', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>Hoy</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', padding: '10px 14px', borderRadius: '10px' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>🍰 Masterclass de Repostería Creativa</strong>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Aula de Pastelería • 16:30h</div>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>Jue 2</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>

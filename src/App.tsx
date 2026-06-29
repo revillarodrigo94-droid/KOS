@@ -11,6 +11,7 @@ import { BriefingServicio } from './components/BriefingServicio';
 import { ChecklistsDiarios } from './components/ChecklistsDiarios';
 import { GestionIncidencias } from './components/GestionIncidencias';
 import { SupervisionTallerComponent } from './components/SupervisionTallerComponent';
+import { QuioscoTV } from './components/QuioscoTV';
 import { 
   LogOut, 
   GraduationCap, 
@@ -25,7 +26,8 @@ import {
   AlertOctagon, 
   TrendingUp,
   Menu,
-  X
+  X,
+  Tv
 } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -100,6 +102,13 @@ const DashboardContent: React.FC = () => {
               <TrendingUp size={18} />
               Supervisión Taller
             </button>
+            <button 
+              style={{...styles.navBtn, ...(activeTab === 'quiosco' ? styles.activeNavBtn : {})}}
+              onClick={() => { setActiveTab('quiosco'); setMenuOpen(false); }}
+            >
+              <Tv size={18} />
+              Modo TV Taller
+            </button>
           </>
         )}
 
@@ -135,6 +144,8 @@ const DashboardContent: React.FC = () => {
         return <GestionIncidencias />;
       case 'supervision':
         return <SupervisionTallerComponent />;
+      case 'quiosco':
+        return <QuioscoTV />;
       default:
         return <div>Sección no encontrada</div>;
     }

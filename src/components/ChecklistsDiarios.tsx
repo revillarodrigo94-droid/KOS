@@ -22,8 +22,7 @@ import {
   UserCheck, 
   Edit3, 
   AlertCircle,
-  BookOpen,
-  Info
+  BookOpen
 } from 'lucide-react';
 
 export const ChecklistsDiarios: React.FC = () => {
@@ -68,8 +67,12 @@ export const ChecklistsDiarios: React.FC = () => {
 
   // Firmas y Observaciones
   const [observaciones, setObservaciones] = useState('');
-  const [firmaNombre, setFirmaNombre] = useState('');
-  const [showFirmaModal, setShowFirmaModal] = useState(false);
+  
+  // Revisión Docente
+  const [comentarioRevision, setComentarioRevision] = useState('');
+  const [urlFoto, setUrlFoto] = useState('');
+  const [fotosRevision, setFotosRevision] = useState<string[]>([]);
+  const [savingRevision, setSavingRevision] = useState(false);
 
   // Alertas
   const [errorMsg, setErrorMsg] = useState('');
@@ -118,6 +121,7 @@ export const ChecklistsDiarios: React.FC = () => {
         .order('fecha', { ascending: false });
 
       if (jefs) {
+        // Enlazar nombres de los alumnos de forma local para evitar joins complejos cruzando con auth
         const formatted = jefs.map((j: any) => {
           const jefeObj = alms?.find(a => a.id === j.jefe_id);
           const limpObj = alms?.find(a => a.id === j.limpieza_id);
@@ -130,13 +134,19 @@ export const ChecklistsDiarios: React.FC = () => {
         });
         setJefaturas(formatted);
 
+        // Seleccionar por defecto la jefatura de hoy si existe
         const hoyString = new Date().toISOString().split('T')[0];
         const jefHoy = formatted.find(j => j.fecha === hoyString);
         if (jefHoy) {
           setActiveJefatura(jefHoy);
+          setComentarioRevision(jefHoy.comentario_revision || '');
+          setFotosRevision(jefHoy.fotos_revision || []);
           await loadRegistrosChecklists(jefHoy.id);
         } else if (formatted.length > 0) {
+          // O la última disponible
           setActiveJefatura(formatted[0]);
+          setComentarioRevision(formatted[0].comentario_revision || '');
+          setFotosRevision(formatted[0].fotos_revision || []);
           await loadRegistrosChecklists(formatted[0].id);
         }
       }
@@ -150,6 +160,7 @@ export const ChecklistsDiarios: React.FC = () => {
 
   const loadRegistrosChecklists = async (jefaturaId: string) => {
     try {
+      // Cargar registros de producción
       const { data: regP } = await supabase
         .from('checklist_produccion_registro')
         .select('*')
@@ -161,6 +172,7 @@ export const ChecklistsDiarios: React.FC = () => {
       });
       setRegistrosProd(mapP);
 
+      // Cargar registros de limpieza
       const { data: regL } = await supabase
         .from('checklist_limpieza_registro')
         .select('*')
@@ -181,13 +193,17 @@ export const ChecklistsDiarios: React.FC = () => {
     fetchData();
   }, [profile]);
 
+  // Manejar cambio de Jefatura seleccionada
   const handleSelectJefatura = async (jef: any) => {
     setActiveJefatura(jef);
+    setComentarioRevision(jef.comentario_revision || '');
+    setFotosRevision(jef.fotos_revision || []);
     setLoading(true);
     await loadRegistrosChecklists(jef.id);
     setLoading(false);
   };
 
+  // Crear Asignación de Roles
   const handleAsignarRoles = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!grupoSel || !jefeSel || !limpiezaSel) {
@@ -199,6 +215,7 @@ export const ChecklistsDiarios: React.FC = () => {
     setSuccessMsg('');
 
     try {
+      // Verificar si ya existe asignación para esa fecha y grupo
       const { data: existing } = await supabase
         .from('jefes_cocina')
         .select('id')
@@ -241,6 +258,7 @@ export const ChecklistsDiarios: React.FC = () => {
     }
   };
 
+  // Crear Tarea Maestra
   const handleCrearTareaMaestra = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevaTareaTexto.trim()) return;
@@ -249,6 +267,7 @@ export const ChecklistsDiarios: React.FC = () => {
 
     try {
       if (tipoNuevaTarea === 'produccion') {
+        // En checklists de producción la tarea puede ser general o de un grupo
         const { error } = await supabase
           .from('checklist_produccion_tareas')
           .insert([{
@@ -275,9 +294,11 @@ export const ChecklistsDiarios: React.FC = () => {
     }
   };
 
+  // Completar / Desmarcar Tarea en tiempo real
   const handleToggleTareaRegistro = async (tareaId: string, tipo: 'produccion' | 'limpieza') => {
     if (!activeJefatura) return;
 
+    // Control de permisos: Alumnos solo pueden marcar si tienen asignado el rol correspondiente o son profesores
     const soyJefe = profile?.id === activeJefatura.jefe_id;
     const soyLimpieza = profile?.id === activeJefatura.limpieza_id;
     
@@ -302,9 +323,11 @@ export const ChecklistsDiarios: React.FC = () => {
     const yaCompletada = registrosActuales[tareaId] || false;
     const nuevaCompletada = !yaCompletada;
 
+    // Actualizar optimísticamente en UI
     setRegistros(prev => ({ ...prev, [tareaId]: nuevaCompletada }));
 
     try {
+      // Buscar si ya existe el registro en BD
       const { data: existing } = await supabase
         .from(tabla)
         .select('id')
@@ -329,24 +352,33 @@ export const ChecklistsDiarios: React.FC = () => {
         if (error) throw error;
       }
     } catch (err: any) {
+      // Revertir en caso de error
       setRegistros(prev => ({ ...prev, [tareaId]: yaCompletada }));
       alert('Error al guardar tarea: ' + err.message);
     }
   };
 
-  const handleFirmaChecklist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeJefatura || !firmaNombre.trim()) return;
+  // Firmar y congelar el checklist diario
+  const handleFirmaChecklist = async () => {
+    if (!activeJefatura) return;
+
+    const confirmacion = window.confirm('¿Estás seguro de firmar y congelar este checklist? Esta acción no se puede deshacer.');
+    if (!confirmacion) return;
+
     setSavingChecklist(true);
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
+      const nombreFirma = `${profile?.nombre || ''} ${profile?.apellidos || ''}`.trim() || 'Jefe/Encargado';
+      
+      // Congelar jefatura con firma y observaciones
       const { error } = await supabase
         .from('jefes_cocina')
         .update({
           firmado: true,
           firmado_en: new Date().toISOString(),
+          firma_nombre: nombreFirma,
           observaciones_produccion: activeChecklistTab === 'produccion' ? observaciones : activeJefatura.observaciones_produccion,
           observaciones_limpieza: activeChecklistTab === 'limpieza' ? observaciones : activeJefatura.observaciones_limpieza
         })
@@ -354,15 +386,39 @@ export const ChecklistsDiarios: React.FC = () => {
 
       if (error) throw error;
 
-      setSuccessMsg('Firma digital estampada. El registro diario ha sido congelado correctamente.');
-      setShowFirmaModal(false);
+      setSuccessMsg('Firma registrada. El registro del taller ha sido congelado correctamente.');
       setObservaciones('');
-      setFirmaNombre('');
       fetchData();
     } catch (err: any) {
       setErrorMsg('Error al guardar firma: ' + err.message);
     } finally {
       setSavingChecklist(false);
+    }
+  };
+
+  // Guardar la revisión del profesor
+  const handleGuardarRevision = async () => {
+    if (!activeJefatura) return;
+    setSavingRevision(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const { error } = await supabase
+        .from('jefes_cocina')
+        .update({
+          comentario_revision: comentarioRevision.trim() || null,
+          fotos_revision: fotosRevision
+        })
+        .eq('id', activeJefatura.id);
+
+      if (error) throw error;
+      setSuccessMsg('Revisión docente guardada correctamente.');
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg('Error al guardar revisión: ' + err.message);
+    } finally {
+      setSavingRevision(false);
     }
   };
 
@@ -373,6 +429,7 @@ export const ChecklistsDiarios: React.FC = () => {
 
   return (
     <div style={styles.container}>
+      {/* CABECERA Y SECTOR DE PESTAÑAS */}
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <CheckSquare size={24} color="var(--accent)" />
@@ -416,8 +473,10 @@ export const ChecklistsDiarios: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* PESTAÑA 1: LLENAR CHECKLISTS */}
           {activeTab === 'taller' && (
             <div style={styles.tallerLayout}>
+              {/* Panel Izquierdo: Fechas / Sesiones */}
               <div style={styles.sideBento}>
                 <div style={styles.panelTitle}>Sesiones de Taller</div>
                 <div style={styles.recetarioScroll}>
@@ -435,7 +494,7 @@ export const ChecklistsDiarios: React.FC = () => {
                             ...(isActive ? styles.sessionCardActive : {})
                           }}
                         >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', justifyBetween: 'center', alignItems: 'center', marginBottom: '6px' }}>
                             <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{jef.grupo_nombre}</div>
                             {jef.firmado ? (
                               <span style={styles.chipSigned}>Firmado</span>
@@ -456,6 +515,7 @@ export const ChecklistsDiarios: React.FC = () => {
                 </div>
               </div>
 
+              {/* Panel Derecho: Checklists */}
               {activeJefatura ? (
                 <div style={styles.mainBento}>
                   <div style={styles.activeSessionHeader}>
@@ -484,6 +544,7 @@ export const ChecklistsDiarios: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Advertencia de solo lectura */}
                   {!isProfesor && !isAdmin && (
                     (activeChecklistTab === 'produccion' && !soyJefeActivo) || 
                     (activeChecklistTab === 'limpieza' && !soyLimpiezaActivo)
@@ -494,13 +555,52 @@ export const ChecklistsDiarios: React.FC = () => {
                     </div>
                   )}
 
-                  {activeJefatura.firmado && (
-                    <div style={styles.signedBar}>
-                      <UserCheck size={16} />
-                      <span>Firma registrada. Este checklist ha sido completado y congelado.</span>
+                  {/* Alerta de incidencia o revisión docente para alumnos */}
+                  {activeJefatura.firmado && (activeJefatura.comentario_revision || (activeJefatura.fotos_revision && activeJefatura.fotos_revision.length > 0)) && (
+                    <div style={{
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid var(--danger)',
+                      color: '#ef4444',
+                      padding: '12px 16px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.85rem',
+                      marginBottom: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                        <AlertCircle size={16} />
+                        <span>Incidencia registrada por el Profesor en la revisión del Checklist</span>
+                      </div>
+                      {activeJefatura.comentario_revision && (
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                          <strong>Comentario:</strong> {activeJefatura.comentario_revision}
+                        </p>
+                      )}
+                      {activeJefatura.fotos_revision && activeJefatura.fotos_revision.length > 0 && (
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+                          {activeJefatura.fotos_revision.map((url: string, index: number) => (
+                            <a key={index} href={url} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--accent)', textDecoration: 'underline' }}>
+                              Ver Foto Evidencia #{index + 1}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
+                  {/* Estado Congelado */}
+                  {activeJefatura.firmado && (
+                    <div style={styles.signedBar}>
+                      <UserCheck size={16} />
+                      <span>
+                        Firma registrada: {activeJefatura.firma_nombre || 'Jefe/Encargado'} el {activeJefatura.firmado_en ? new Date(activeJefatura.firmado_en).toLocaleString('es-ES') : ''}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Listado de Tareas */}
                   <div style={{ marginTop: '20px' }}>
                     <ul style={styles.taskList}>
                       {activeChecklistTab === 'produccion' ? (
@@ -562,14 +662,138 @@ export const ChecklistsDiarios: React.FC = () => {
                       )}
                     </ul>
 
-                    {puedeFirmar && (
-                      <button 
-                        onClick={() => setShowFirmaModal(true)} 
-                        style={styles.firmarBtn}
-                      >
-                        <Edit3 size={16} />
-                        Firmar y Congelar Checklist
-                      </button>
+                    {/* Firma simplificada y observaciones (en lugar del modal) */}
+                    {puedeFirmar ? (
+                      <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.label}>Observaciones y Comentarios finales de la sesión</label>
+                          <textarea 
+                            placeholder="Detalla si hubo roturas, material faltante, o algún punto crítico del taller..." 
+                            value={observaciones}
+                            onChange={(e) => setObservaciones(e.target.value)}
+                            style={styles.textarea}
+                            rows={3}
+                          />
+                        </div>
+                        <button 
+                          onClick={handleFirmaChecklist} 
+                          disabled={savingChecklist}
+                          style={styles.firmarBtn}
+                        >
+                          <Edit3 size={16} />
+                          {savingChecklist ? 'Congelando...' : 'Estampar Firma y Congelar'}
+                        </button>
+                      </div>
+                    ) : (
+                      // Si está firmado, mostrar las observaciones registradas
+                      activeJefatura.firmado && (
+                        <div style={{ marginTop: '16px', padding: '12px 16px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                          <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Observaciones Registradas:</h4>
+                          <p style={{ fontSize: '0.82rem', color: 'var(--text-primary)', margin: 0, fontStyle: 'italic' }}>
+                            {activeChecklistTab === 'produccion' 
+                              ? activeJefatura.observaciones_produccion || 'Sin observaciones.' 
+                              : activeJefatura.observaciones_limpieza || 'Sin observaciones.'}
+                          </p>
+                        </div>
+                      )
+                    )}
+
+                    {/* Panel de Revisión Docente (solo para profesores / admin si ya está firmado) */}
+                    {activeJefatura.firmado && (isProfesor || isAdmin) && (
+                      <div style={{
+                        marginTop: '24px',
+                        padding: '20px',
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px dashed var(--border-color)',
+                        borderRadius: '12px',
+                      }}>
+                        <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Edit3 size={16} />
+                          Panel de Revisión Docente (Revisión Final de Checklist)
+                        </h4>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={styles.inputGroup}>
+                            <label style={styles.label}>Comentarios de Revisión / Justificación de Incidencia</label>
+                            <textarea
+                              placeholder="Especifica incidencias encontradas (ej. limpieza deficiente en campanas, mesa de corte sucia...)"
+                              value={comentarioRevision}
+                              onChange={(e) => setComentarioRevision(e.target.value)}
+                              style={styles.textarea}
+                              rows={3}
+                            />
+                          </div>
+
+                          <div style={styles.inputGroup}>
+                            <label style={styles.label}>Añadir URL de Foto de Evidencia</label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <input
+                                type="text"
+                                placeholder="Introduce la URL de la imagen de prueba..."
+                                value={urlFoto}
+                                onChange={(e) => setUrlFoto(e.target.value)}
+                                style={styles.input}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (urlFoto.trim()) {
+                                    setFotosRevision(prev => [...prev, urlFoto.trim()]);
+                                    setUrlFoto('');
+                                  }
+                                }}
+                                style={{
+                                  padding: '8px 16px',
+                                  backgroundColor: 'var(--bg-secondary)',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-primary)',
+                                  borderRadius: '8px',
+                                  fontSize: '0.8rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Añadir
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Listado de fotos añadidas en revisión */}
+                          {fotosRevision.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <span style={styles.label}>Fotos de Evidencia Añadidas ({fotosRevision.length}):</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {fotosRevision.map((url, index) => (
+                                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.75rem' }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px', color: 'var(--text-secondary)' }}>
+                                      {url}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setFotosRevision(prev => prev.filter((_, i) => i !== index))}
+                                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={handleGuardarRevision}
+                            disabled={savingRevision}
+                            style={{
+                              ...styles.submitBtn,
+                              marginTop: '8px',
+                              backgroundColor: comentarioRevision.trim() ? 'var(--danger)' : 'var(--accent)'
+                            }}
+                          >
+                            {savingRevision ? 'Guardando...' : 'Guardar Revisión Docente'}
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -581,6 +805,7 @@ export const ChecklistsDiarios: React.FC = () => {
             </div>
           )}
 
+          {/* PESTAÑA 2: ASIGNAR ROLES DIARIOS (DOCENTES / ADMIN) */}
           {activeTab === 'roles' && (isProfesor || isAdmin) && (
             <div style={styles.formLayout}>
               <div style={styles.bentoCard}>
@@ -650,8 +875,10 @@ export const ChecklistsDiarios: React.FC = () => {
             </div>
           )}
 
+          {/* PESTAÑA 3: CONFIGURAR TAREAS MAESTRAS (DOCENTES / ADMIN) */}
           {activeTab === 'config' && (isProfesor || isAdmin) && (
             <div style={styles.tallerLayout}>
+              {/* Formulario de creación */}
               <div style={styles.sideBento}>
                 <div style={styles.panelTitle}>Añadir Tarea Maestra</div>
                 <form onSubmit={handleCrearTareaMaestra} style={styles.form}>
@@ -706,6 +933,7 @@ export const ChecklistsDiarios: React.FC = () => {
                 </form>
               </div>
 
+              {/* Panel de visualización y edición */}
               <div style={styles.mainBento}>
                 <div style={styles.panelTitle}>Tareas Maestras Registradas</div>
                 
@@ -738,48 +966,7 @@ export const ChecklistsDiarios: React.FC = () => {
         </>
       )}
 
-      {showFirmaModal && activeJefatura && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalCard}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Firmar Registro del Taller</h3>
-              <button onClick={() => setShowFirmaModal(false)} style={styles.closeBtn}>
-                X
-              </button>
-            </div>
 
-            <form onSubmit={handleFirmaChecklist} style={styles.modalForm}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Observaciones y Comentarios finales de la sesión</label>
-                <textarea 
-                  placeholder="Detalla si hubo roturas, material faltante, o algún punto crítico del taller..." 
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  style={styles.textarea}
-                  rows={3}
-                />
-              </div>
-
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Firma Digital (Escribe tu Nombre Completo para firmar)</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. Rodrigo Revilla" 
-                  value={firmaNombre}
-                  onChange={(e) => setFirmaNombre(e.target.value)}
-                  style={styles.input}
-                  required
-                />
-                <p style={styles.helpText}>Al pulsar firmar, este checklist se congelará y guardará con una marca de tiempo y tu identidad de Supabase. No se podrá volver a editar.</p>
-              </div>
-
-              <button type="submit" disabled={savingChecklist || !firmaNombre.trim()} style={styles.saveBtn}>
-                {savingChecklist ? 'Congelando...' : 'Estampar Firma y Congelar'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -924,6 +1111,8 @@ const styles = {
     padding: '2px 8px',
     borderRadius: '20px',
   } as React.CSSProperties,
+  
+  // Detalle Sesion Activa
   activeSessionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1033,6 +1222,8 @@ const styles = {
     marginTop: '20px',
     transition: 'all var(--transition-fast)',
   } as React.CSSProperties,
+
+  // Frmularios
   formLayout: {
     maxWidth: '600px',
     margin: '0 auto',
@@ -1102,6 +1293,8 @@ const styles = {
     transition: 'all var(--transition-fast)',
     marginTop: '10px',
   } as React.CSSProperties,
+
+  // Config list
   configList: {
     listStyle: 'none',
     display: 'flex',
@@ -1140,6 +1333,8 @@ const styles = {
     backgroundColor: 'var(--accent-glow)',
     color: 'var(--text-primary)',
   } as React.CSSProperties,
+
+  // Modales
   modalOverlay: {
     position: 'fixed',
     top: 0,

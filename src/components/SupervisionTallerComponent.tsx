@@ -144,23 +144,72 @@ export const SupervisionTallerComponent: React.FC = () => {
     }
   };
 
-  const renderStarsSelector = (val: number, setVal: (v: number) => void) => {
+  const getRubricaTexto = (aspecto: string, valor: number) => {
+    const rubricas: Record<string, Record<number, string>> = {
+      uniformidad: {
+        1: 'Deficiente: Sin chaqueta ni gorro, calzado inapropiado.',
+        2: 'Regular: Falta alguna prenda menor o calzado incorrecto.',
+        3: 'Aceptable: Vestimenta completa pero descuidada o arrugada.',
+        4: 'Excelente: Uniforme limpio, planchado y calzado de seguridad.',
+        5: 'Profesional: Uniformidad perfecta, gorro bien colocado y sin joyas.'
+      },
+      higiene: {
+        1: 'Deficiente: Estación sucia, contaminación cruzada grave, sin lavado de manos.',
+        2: 'Regular: Lavado de manos poco frecuente, estación desorganizada.',
+        3: 'Aceptable: Limpieza básica al terminar, algunos descuidos leves.',
+        4: 'Excelente: Limpieza constante, orden y desinfección de tablas.',
+        5: 'Profesional: Estación de trabajo impecable, desinfección perfecta en cada paso.'
+      },
+      tecnica: {
+        1: 'Deficiente: Cortes peligrosos, mal manejo del fuego, desperdicio de producto.',
+        2: 'Regular: Técnica lenta o imprecisa, mal uso de herramientas.',
+        3: 'Aceptable: Sigue los pasos de la receta pero requiere supervisión constante.',
+        4: 'Excelente: Ejecución precisa de técnicas, cortes correctos, buen sazonamiento.',
+        5: 'Profesional: Destreza superior, control perfecto de cocciones y tiempos de servicio.'
+      },
+      actitud: {
+        1: 'Deficiente: Apático, falta de compañerismo, no acepta feedback.',
+        2: 'Regular: Poco proactivo, trabaja de forma aislada.',
+        3: 'Aceptable: Cumple con lo asignado y colabora cuando se le pide.',
+        4: 'Excelente: Muy colaborativo, actitud positiva y proactiva.',
+        5: 'Profesional: Liderazgo positivo, apoyo a compañeros y gran iniciativa.'
+      }
+    };
+    return rubricas[aspecto]?.[valor] || 'Selecciona una puntuación';
+  };
+
+  const renderStarsSelector = (val: number, setVal: (v: number) => void, aspecto: 'uniformidad' | 'higiene' | 'tecnica' | 'actitud') => {
     return (
-      <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-        {[1, 2, 3, 4, 5].map(star => (
-          <button
-            key={star}
-            type="button"
-            onClick={() => setVal(star)}
-            style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', padding: '2px' }}
-          >
-            <Star 
-              size={24} 
-              color={star <= val ? 'var(--accent)' : 'var(--border-color)'}
-              fill={star <= val ? 'var(--accent)' : 'transparent'} 
-            />
-          </button>
-        ))}
+      <div style={{ marginTop: '4px' }}>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {[1, 2, 3, 4, 5].map(star => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => setVal(star)}
+              style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', padding: '2px' }}
+            >
+              <Star 
+                size={24} 
+                color={star <= val ? 'var(--accent)' : 'var(--border-color)'}
+                fill={star <= val ? 'var(--accent)' : 'transparent'} 
+              />
+            </button>
+          ))}
+        </div>
+        <p style={{
+          fontSize: '0.72rem',
+          color: 'var(--text-secondary)',
+          margin: '6px 0 0 0',
+          lineHeight: '1.3',
+          fontStyle: 'italic',
+          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          borderLeft: '2px solid var(--accent)'
+        }}>
+          {getRubricaTexto(aspecto, val)}
+        </p>
       </div>
     );
   };
@@ -339,19 +388,19 @@ export const SupervisionTallerComponent: React.FC = () => {
               <div style={styles.starFormGroup}>
                 <div>
                   <label style={styles.label}>👕 Uniformidad y EPIs (1-5)</label>
-                  {renderStarsSelector(uniformidad, setUniformidad)}
+                  {renderStarsSelector(uniformidad, setUniformidad, 'uniformidad')}
                 </div>
                 <div>
                   <label style={styles.label}>🧼 Higiene y Desinfección (1-5)</label>
-                  {renderStarsSelector(higiene, setHigiene)}
+                  {renderStarsSelector(higiene, setHigiene, 'higiene')}
                 </div>
                 <div>
                   <label style={styles.label}>🔪 Destreza Técnica (1-5)</label>
-                  {renderStarsSelector(tecnica, setTecnica)}
+                  {renderStarsSelector(tecnica, setTecnica, 'tecnica')}
                 </div>
                 <div>
                   <label style={styles.label}>🤝 Actitud y Colaboración (1-5)</label>
-                  {renderStarsSelector(actitud, setActitud)}
+                  {renderStarsSelector(actitud, setActitud, 'actitud')}
                 </div>
               </div>
 
