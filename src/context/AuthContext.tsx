@@ -32,7 +32,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error fetching user profile:', error.message);
         setProfile(null);
       } else {
-        setProfile(data as Usuario);
+        let currentProfile = data as Usuario;
+        if (currentProfile && currentProfile.email === 'rodrigo.revsan@educacyl.es' && (currentProfile.rol !== 'admin' || !currentProfile.estado_aprobacion)) {
+          console.log('Detectado rodrigo.revsan@educacyl.es, promoviendo a administrador...');
+          const { error: updateError } = await supabase
+            .from('usuarios')
+            .update({ rol: 'admin', estado_aprobacion: true })
+            .eq('id', userId);
+          
+          if (!updateError) {
+            currentProfile.rol = 'admin';
+            currentProfile.estado_aprobacion = true;
+            console.log('Usuario promovido a admin con éxito.');
+          } else {
+            console.error('Error al auto-promover a admin:', updateError.message);
+          }
+        }
+        setProfile(currentProfile);
       }
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);

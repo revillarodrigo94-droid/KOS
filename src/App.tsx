@@ -8,6 +8,7 @@ import { InventarioActivo } from './components/InventarioActivo';
 import { AlumnoDashboard } from './components/AlumnoDashboard';
 import { ProfesorDashboard } from './components/ProfesorDashboard';
 import { BriefingServicio } from './components/BriefingServicio';
+import { ChecklistsDiarios } from './components/ChecklistsDiarios';
 import { 
   LogOut, 
   GraduationCap, 
@@ -127,7 +128,7 @@ const DashboardContent: React.FC = () => {
       case 'briefing':
         return <BriefingServicio />;
       case 'checklists':
-        return <div style={styles.tabPlaceholder}><h2>Checklists de Jefatura y Limpieza</h2><p>Próximamente en Fase 6.</p></div>;
+        return <ChecklistsDiarios />;
       case 'incidencias':
         return <div style={styles.tabPlaceholder}><h2>Reporte y Gestión de Incidencias</h2><p>Próximamente en Fase 7.</p></div>;
       case 'supervision':
