@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { 
+import type { 
   InventarioMaestro, 
   InventarioActivo as StockActivo, 
   HistorialInventario,
@@ -29,6 +29,14 @@ export const InventarioActivo: React.FC = () => {
   const isAlumno = profile?.rol === 'alumno';
   const isProfesor = profile?.rol === 'profesor';
   const isAdmin = profile?.rol === 'admin';
+
+  const nombresZonas: Record<ZonaAlmacen, string> = {
+    economato: 'Economato (Almacén Seco)',
+    bodega: 'Bodega (Bebidas y Vinos)',
+    camaras: 'Cámaras (Fresco / Frío)',
+    refrigeradora: 'Cámara Refrigeradora (Frescos)',
+    congeladora: 'Cámara Congeladora (Congelados)'
+  };
 
   // Datos
   const [listaMaestra, setListaMaestra] = useState<InventarioMaestro[]>([]);
@@ -394,19 +402,25 @@ export const InventarioActivo: React.FC = () => {
                 style={{...styles.zoneBtn, ...(zonaSelected === 'economato' ? styles.activeZoneBtn : {})}}
                 onClick={() => setZonaSelected('economato')}
               >
-                Economato (Secos y Almacén)
+                Economato (Almacén Seco)
               </button>
               <button 
                 style={{...styles.zoneBtn, ...(zonaSelected === 'bodega' ? styles.activeZoneBtn : {})}}
                 onClick={() => setZonaSelected('bodega')}
               >
-                Bodega (Líquidos y Vinos)
+                Bodega (Bebidas y Vinos)
               </button>
               <button 
-                style={{...styles.zoneBtn, ...(zonaSelected === 'camaras' ? styles.activeZoneBtn : {})}}
-                onClick={() => setZonaSelected('camaras')}
+                style={{...styles.zoneBtn, ...(zonaSelected === 'refrigeradora' ? styles.activeZoneBtn : {})}}
+                onClick={() => setZonaSelected('refrigeradora')}
               >
-                Cámaras (Fresco / Frío)
+                Cámara Refrigeradora (Frescos)
+              </button>
+              <button 
+                style={{...styles.zoneBtn, ...(zonaSelected === 'congeladora' ? styles.activeZoneBtn : {})}}
+                onClick={() => setZonaSelected('congeladora')}
+              >
+                Cámara Congeladora (Congelados)
               </button>
             </div>
 
@@ -510,7 +524,7 @@ export const InventarioActivo: React.FC = () => {
 
           {/* Panel Derecho: Tabla de existencias */}
           <div style={styles.mainPanel}>
-            <div style={styles.panelTitle}>Existencias en {zonaSelected.toUpperCase()}</div>
+            <div style={styles.panelTitle}>Existencias en {nombresZonas[zonaSelected]}</div>
 
             {loadingData ? (
               <div style={styles.loaderWrapper}>

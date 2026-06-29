@@ -11,7 +11,7 @@ CREATE TYPE public.user_role AS ENUM ('alumno', 'profesor', 'admin');
 CREATE TYPE public.grado_tipo AS ENUM ('GB', 'GM', 'GS', 'CE');
 CREATE TYPE public.camara_tipo AS ENUM ('refrigeracion', 'congelacion');
 CREATE TYPE public.momento_registro AS ENUM ('inicio', 'fin');
-CREATE TYPE public.zona_almacen AS ENUM ('economato', 'bodega', 'camaras');
+CREATE TYPE public.zona_almacen AS ENUM ('economato', 'bodega', 'camaras', 'refrigeradora', 'congeladora');
 CREATE TYPE public.inventario_operacion AS ENUM ('entrada', 'salida', 'ajuste');
 CREATE TYPE public.incidencia_tipo AS ENUM ('averia', 'rotura', 'extravio', 'peligro', 'otro');
 CREATE TYPE public.incidencia_estado AS ENUM ('pendiente', 'notificado_centro', 'resuelto');

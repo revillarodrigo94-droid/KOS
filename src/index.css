@@ -1,34 +1,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Paleta de Colores Sólidos Dark UI Premium */
-  --bg-primary: #09090b;       /* Fondo oscuro profundo mate */
-  --bg-secondary: #0e0e11;     /* Fondo de paneles / sidebar */
+  /* Paleta de Colores Obsidian Culinary Logic - Dark UI Premium */
+  --bg-primary: #0e0e10;       /* Fondo profundo mate (lowest elevation) */
+  --bg-secondary: #131315;     /* Superficie general de la app / sidebar */
   --bg-card: #18181b;          /* Tarjetas Bento Grid */
-  --bg-card-hover: #202024;    /* Tarjetas hover */
-  --border-color: #27272a;     /* Bordes ultrafinos 1px */
+  --bg-card-hover: #222226;    /* Hover sobre Bento cards */
+  --border-color: #27272a;     /* Borde sutil ultrafino 1px */
   --border-color-hover: #3f3f46;
   
   /* Textos */
-  --text-primary: #fafafa;     /* Texto principal de alto contraste */
-  --text-secondary: #a1a1aa;   /* Texto secundario informativo */
+  --text-primary: #f4f4f5;     /* text-bright de alto contraste */
+  --text-secondary: #a1a1aa;   /* text-muted informativo */
   --text-muted: #71717a;       /* Textos de ayuda / placeholders */
   
-  /* Estados y Acentos */
-  --accent: #e0a96d;           /* Oro culinario refinado / ámbar */
-  --accent-hover: #cf9559;
-  --accent-glow: rgba(224, 169, 109, 0.1);
-  --accent-text: #18181b;
+  /* Estados y Acentos (Amber Gold de precisión) */
+  --accent: #f59e0b;           /* Amber Gold principal */
+  --accent-hover: #d97706;     /* Amber Gold hover */
+  --accent-glow: rgba(245, 158, 11, 0.1);
+  --accent-text: #09090b;      /* Texto negro para botones de acento */
   
-  --danger: #f87171;           /* Rojo técnico para alertas APPCC e incidencias */
-  --danger-hover: #ef4444;
-  --danger-glow: rgba(248, 113, 113, 0.1);
+  /* Alertas y Peligros (Alert Red técnico) */
+  --danger: #ef4444;           /* Alert Red de Supabase y APPCC */
+  --danger-hover: #dc2626;
+  --danger-glow: rgba(239, 68, 68, 0.15);
   
-  --success: #34d399;          /* Verde para checklists y correcto */
-  --success-hover: #10b981;
-  --success-glow: rgba(52, 211, 153, 0.1);
+  /* Éxitos y Correctos (Verde esmeralda técnico) */
+  --success: #10b981;          
+  --success-hover: #059669;
+  --success-glow: rgba(16, 185, 129, 0.1);
   
-  --warning: #fbbf24;          /* Amarillo advertencias */
+  /* Advertencias */
+  --warning: #fbbf24;          
   --warning-hover: #f59e0b;
 
   /* Tipografía */

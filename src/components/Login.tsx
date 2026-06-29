@@ -67,9 +67,7 @@ export const Login: React.FC = () => {
       <div style={styles.loginCard}>
         {/* Encabezado del Logo */}
         <div style={styles.logoHeader}>
-          <div style={styles.logoIcon}>
-            <GraduationCap size={32} color="var(--accent)" />
-          </div>
+          <img src="/logo.png" alt="KitchenOS Logo" style={styles.logoImg} />
           <h1 style={styles.logoText}>Kitchen<span style={{ color: 'var(--accent)' }}>OS</span></h1>
           <p style={styles.logoSub}>Gestión Inteligente de Aulas de Hostelería</p>
         </div>
@@ -225,17 +223,22 @@ const styles = {
     justifyContent: 'center',
     minHeight: '100vh',
     width: '100vw',
-    backgroundColor: 'var(--bg-primary)',
+    backgroundColor: '#09090b',
+    backgroundImage: 'radial-gradient(circle at 50% 30%, rgba(245, 158, 11, 0.08) 0%, rgba(0, 0, 0, 0) 60%), radial-gradient(circle at 20% 80%, rgba(245, 158, 11, 0.03) 0%, rgba(0, 0, 0, 0) 50%)',
     padding: '20px',
+    position: 'relative',
+    overflow: 'hidden',
   } as React.CSSProperties,
   loginCard: {
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-color)',
-    borderRadius: 'var(--radius-lg)',
+    backgroundColor: 'rgba(24, 24, 27, 0.6)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '20px',
     padding: '40px',
     width: '100%',
     maxWidth: '480px',
-    boxShadow: 'var(--shadow-lg)',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0px rgba(255, 255, 255, 0.1)',
   } as React.CSSProperties,
   logoHeader: {
     display: 'flex',
@@ -244,12 +247,12 @@ const styles = {
     marginBottom: '30px',
     textAlign: 'center',
   } as React.CSSProperties,
-  logoIcon: {
-    backgroundColor: 'var(--accent-glow)',
-    padding: '12px',
-    borderRadius: 'var(--radius-md)',
-    border: '1px solid rgba(224, 169, 109, 0.2)',
-    marginBottom: '12px',
+  logoImg: {
+    height: '120px',
+    width: 'auto',
+    objectFit: 'contain',
+    marginBottom: '14px',
+    filter: 'drop-shadow(0 4px 20px rgba(245, 158, 11, 0.25))',
   } as React.CSSProperties,
   logoText: {
     fontSize: '2rem',

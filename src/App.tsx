@@ -5,6 +5,9 @@ import { WaitingApproval } from './components/WaitingApproval';
 import { AdminUserApproval } from './components/AdminUserApproval';
 import { TemperaturasAPPCC } from './components/TemperaturasAPPCC';
 import { InventarioActivo } from './components/InventarioActivo';
+import { AlumnoDashboard } from './components/AlumnoDashboard';
+import { ProfesorDashboard } from './components/ProfesorDashboard';
+import { BriefingServicio } from './components/BriefingServicio';
 import { 
   LogOut, 
   GraduationCap, 
@@ -114,22 +117,7 @@ const DashboardContent: React.FC = () => {
   const renderActiveTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return (
-          <div style={styles.dashboardPlaceholder}>
-            <h2 style={{ marginBottom: '16px', fontSize: '1.4rem' }}>Bienvenido a KitchenOS</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '30px' }}>
-              Has iniciado sesión como <strong style={{ color: 'var(--text-primary)' }}>{profile?.nombre} {profile?.apellidos}</strong> ({profile?.rol}).
-            </p>
-            <div className="bento-grid">
-              <div className="bento-card active-accent" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Panel en Construcción</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  El Bento Grid Dashboard dinámico para el rol {profile?.rol} se integrará en las próximas fases del plan de desarrollo.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
+        return profile?.rol === 'alumno' ? <AlumnoDashboard /> : <ProfesorDashboard />;
       case 'usuarios':
         return <AdminUserApproval />;
       case 'temperaturas':
