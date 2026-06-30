@@ -157,15 +157,12 @@ const DashboardContent: React.FC = () => {
       <header style={styles.header}>
         {/* LOGO IZQUIERDO: Junta de Castilla y León (Consejería de Educación) */}
         <div style={styles.cylLogoContainer}>
-          <div style={styles.cylIcon}>JCyL</div>
-          <div style={styles.cylText}>
-            <div style={{ fontWeight: 700, fontSize: '0.7rem' }}>Junta de</div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Castilla y León</div>
-          </div>
+          <img src="/logo-cyl.jpg" alt="Junta de Castilla y León Logo" style={{ height: '32px', objectFit: 'contain' }} />
         </div>
 
         {/* LOGO CENTRAL: KitchenOS */}
-        <div style={styles.appTitle}>
+        <div style={{ ...styles.appTitle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="/logo.png" alt="KitchenOS Logo" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
           <span style={styles.appLogoText}>Kitchen<span style={{ color: 'var(--accent)' }}>OS</span></span>
         </div>
 

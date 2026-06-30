@@ -30,7 +30,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user profile:', error.message);
-        setProfile(null);
+        // Respaldo de contingencia usando metadata del JWT de Supabase Auth
+        const sessionUser = (await supabase.auth.getUser()).data.user;
+        if (sessionUser) {
+          const backupProfile: Usuario = {
+            id: userId,
+            nombre: sessionUser.user_metadata?.nombre || 'Usuario',
+            apellidos: sessionUser.user_metadata?.apellidos || 'KOS',
+            rol: sessionUser.user_metadata?.rol || 'alumno',
+            estado_aprobacion: true,
+            creado_en: new Date().toISOString()
+          } as any;
+          setProfile(backupProfile);
+        } else {
+          setProfile(null);
+        }
       } else {
         let currentProfile = data as Usuario;
         if (currentProfile && currentProfile.email === 'rodrigo.revsan@educacyl.es' && (currentProfile.rol !== 'admin' || !currentProfile.estado_aprobacion)) {

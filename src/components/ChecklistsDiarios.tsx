@@ -44,6 +44,16 @@ export const ChecklistsDiarios: React.FC = () => {
   const [activeJefatura, setActiveJefatura] = useState<(JefeCocina & { grupo_nombre?: string }) | null>(null);
   const [registrosProd, setRegistrosProd] = useState<Record<string, boolean>>({});
   const [registrosLimp, setRegistrosLimp] = useState<Record<string, boolean>>({});
+  const [registrosMantenimiento, setRegistrosMantenimiento] = useState<Record<string, boolean>>({});
+
+  const tareasMantenimiento = [
+    { id: 'm-1', tarea: 'Descalcificación y limpieza profunda del lavavajillas industrial.' },
+    { id: 'm-2', tarea: 'Afilado profundo y desinfección de toda la cuchillería del taller.' },
+    { id: 'm-3', tarea: 'Higiene profunda e inspección de filtros de las campanas extractoras.' },
+    { id: 'm-4', tarea: 'Verificación de presiones de gas y gomas magnéticas de hornos.' },
+    { id: 'm-5', tarea: 'Descongelación programada y lavado de juntas de las cámaras.' },
+    { id: 'm-6', tarea: 'Inventario, orden y reposición de materiales del botiquín de seguridad.' }
+  ];
 
   // Carga
   const [loading, setLoading] = useState(true);
@@ -52,7 +62,7 @@ export const ChecklistsDiarios: React.FC = () => {
 
   // Pestañas
   const [activeTab, setActiveTab] = useState<'taller' | 'roles' | 'config'>('taller');
-  const [activeChecklistTab, setActiveChecklistTab] = useState<'produccion' | 'limpieza'>('produccion');
+  const [activeChecklistTab, setActiveChecklistTab] = useState<'produccion' | 'limpieza' | 'mantenimiento'>('produccion');
 
   // Formulario de asignación de roles
   const [grupoSel, setGrupoSel] = useState('');
@@ -184,6 +194,14 @@ export const ChecklistsDiarios: React.FC = () => {
       });
       setRegistrosLimp(mapL);
 
+      // Cargar registros de mantenimiento preventivo semanal
+      const localM = localStorage.getItem(`checklist_mantenimiento_${jefaturaId}`);
+      if (localM) {
+        setRegistrosMantenimiento(JSON.parse(localM));
+      } else {
+        setRegistrosMantenimiento({});
+      }
+
     } catch (err) {
       console.error(err);
     }
@@ -295,7 +313,7 @@ export const ChecklistsDiarios: React.FC = () => {
   };
 
   // Completar / Desmarcar Tarea en tiempo real
-  const handleToggleTareaRegistro = async (tareaId: string, tipo: 'produccion' | 'limpieza') => {
+  const handleToggleTareaRegistro = async (tareaId: string, tipo: 'produccion' | 'limpieza' | 'mantenimiento') => {
     if (!activeJefatura) return;
 
     // Control de permisos: Alumnos solo pueden marcar si tienen asignado el rol correspondiente o son profesores
@@ -310,9 +328,22 @@ export const ChecklistsDiarios: React.FC = () => {
       alert('Permiso denegado: Solo el Encargado de Limpieza de hoy puede modificar el checklist de limpieza.');
       return;
     }
+    if (isAlumno && tipo === 'mantenimiento' && !soyJefe && !soyLimpieza) {
+      alert('Permiso denegado: Solo el Jefe de Cocina o el Encargado de Limpieza de hoy pueden modificar el mantenimiento preventivo.');
+      return;
+    }
 
     if (activeJefatura.firmado) {
       alert('Este registro diario ya está congelado y firmado. No se admiten modificaciones.');
+      return;
+    }
+
+    if (tipo === 'mantenimiento') {
+      const yaCompletada = registrosMantenimiento[tareaId] || false;
+      const nuevaCompletada = !yaCompletada;
+      const nuevosRegs = { ...registrosMantenimiento, [tareaId]: nuevaCompletada };
+      setRegistrosMantenimiento(nuevosRegs);
+      localStorage.setItem(`checklist_mantenimiento_${activeJefatura.id}`, JSON.stringify(nuevosRegs));
       return;
     }
 
@@ -425,7 +456,10 @@ export const ChecklistsDiarios: React.FC = () => {
   const soyJefeActivo = activeJefatura && profile?.id === activeJefatura.jefe_id;
   const soyLimpiezaActivo = activeJefatura && profile?.id === activeJefatura.limpieza_id;
   const puedeFirmar = activeJefatura && !activeJefatura.firmado && 
-    (isProfesor || isAdmin || (activeChecklistTab === 'produccion' && soyJefeActivo) || (activeChecklistTab === 'limpieza' && soyLimpiezaActivo));
+    (isProfesor || isAdmin || 
+     (activeChecklistTab === 'produccion' && soyJefeActivo) || 
+     (activeChecklistTab === 'limpieza' && soyLimpiezaActivo) || 
+     (activeChecklistTab === 'mantenimiento' && (soyJefeActivo || soyLimpiezaActivo)));
 
   return (
     <div style={styles.container}>
@@ -541,13 +575,20 @@ export const ChecklistsDiarios: React.FC = () => {
                       >
                         Limpieza de Aula
                       </button>
+                      <button
+                        style={{...styles.checkTabBtn, ...(activeChecklistTab === 'mantenimiento' ? styles.activeCheckTabBtn : {})}}
+                        onClick={() => setActiveChecklistTab('mantenimiento')}
+                      >
+                        Mantenimiento Preventivo
+                      </button>
                     </div>
                   </div>
 
                   {/* Advertencia de solo lectura */}
                   {!isProfesor && !isAdmin && (
                     (activeChecklistTab === 'produccion' && !soyJefeActivo) || 
-                    (activeChecklistTab === 'limpieza' && !soyLimpiezaActivo)
+                    (activeChecklistTab === 'limpieza' && !soyLimpiezaActivo) ||
+                    (activeChecklistTab === 'mantenimiento' && !soyJefeActivo && !soyLimpiezaActivo)
                   ) && (
                     <div style={styles.infoBar}>
                       <Info size={16} />
@@ -631,7 +672,7 @@ export const ChecklistsDiarios: React.FC = () => {
                             </li>
                           );
                         })
-                      ) : (
+                      ) : activeChecklistTab === 'limpieza' ? (
                         tareasLimp.map(task => {
                           const completada = registrosLimp[task.id] || false;
                           return (
@@ -655,6 +696,34 @@ export const ChecklistsDiarios: React.FC = () => {
                                 textDecoration: completada ? 'line-through' : 'none'
                               }}>
                                 {task.tarea} <span style={{ fontSize: '0.7rem', color: 'var(--accent)', marginLeft: '6px' }}>({task.aula})</span>
+                              </span>
+                            </li>
+                          );
+                        })
+                      ) : (
+                        tareasMantenimiento.map(task => {
+                          const completada = registrosMantenimiento[task.id] || false;
+                          return (
+                            <li 
+                              key={task.id}
+                              onClick={() => handleToggleTareaRegistro(task.id, 'mantenimiento')}
+                              style={{
+                                ...styles.taskItem,
+                                ...(completada ? styles.taskCompleted : {})
+                              }}
+                            >
+                              <div style={{
+                                ...styles.checkbox,
+                                ...(completada ? styles.checkboxActive : {})
+                              }}>
+                                {completada && <Check size={12} strokeWidth={3} color="#000" />}
+                              </div>
+                              <span style={{
+                                fontSize: '0.85rem',
+                                color: completada ? 'var(--text-muted)' : 'var(--text-primary)',
+                                textDecoration: completada ? 'line-through' : 'none'
+                              }}>
+                                {task.tarea}
                               </span>
                             </li>
                           );
